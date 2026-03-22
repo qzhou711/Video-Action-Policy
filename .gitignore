@@ -19,6 +19,8 @@ precomputed/
 outputs/
 *.pt
 *.safetensors
+eval_videos/
+models--nvidia--Cosmos-Predict2-2B-Video2World/
 
 # Jupyter
 .ipynb_checkpoints/

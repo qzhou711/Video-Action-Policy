@@ -1,0 +1,1 @@
+bash -c "rm -rf mimic_approach && git clone -b main https://PRB-R-NINE-T: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@github.com/PRB-R-NINE-T/mimic_approach.git && cd mimic_approach && make install && make train-all"

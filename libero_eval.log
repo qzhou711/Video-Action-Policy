@@ -1,0 +1,138 @@
+2026-03-22 13:22:31,832 [INFO] 
+############################################################
+2026-03-22 13:22:31,832 [INFO] # Evaluating suite: libero_10
+2026-03-22 13:22:31,832 [INFO] ############################################################
+2026-03-22 13:22:31,832 [INFO] 
+============================================================
+2026-03-22 13:22:31,832 [INFO] Suite: libero_10 | Tasks: 10 | Episodes/task: 1
+2026-03-22 13:22:31,832 [INFO] ============================================================
+2026-03-22 13:22:34,930 [INFO] 
+--- Task 1/10: put both the alphabet soup and the tomato sauce in the basket ---
+2026-03-22 13:23:03,466 [INFO] Video saved: eval_videos/libero_10/task1_ep1.mp4 (608 frames)
+2026-03-22 13:23:03,467 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:23:03,467 [INFO]   Task 1 SR: 0/1 = 0.0%
+2026-03-22 13:23:04,457 [INFO] 
+--- Task 2/10: put both the cream cheese box and the butter in the basket ---
+2026-03-22 13:23:32,031 [INFO] Video saved: eval_videos/libero_10/task2_ep1.mp4 (608 frames)
+2026-03-22 13:23:32,031 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:23:32,031 [INFO]   Task 2 SR: 0/1 = 0.0%
+2026-03-22 13:23:33,326 [INFO] 
+--- Task 3/10: turn on the stove and put the moka pot on it ---
+2026-03-22 13:23:59,070 [INFO] Video saved: eval_videos/libero_10/task3_ep1.mp4 (608 frames)
+2026-03-22 13:23:59,071 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:23:59,071 [INFO]   Task 3 SR: 0/1 = 0.0%
+2026-03-22 13:24:00,130 [INFO] 
+--- Task 4/10: put the black bowl in the bottom drawer of the cabinet and close it ---
+2026-03-22 13:24:27,457 [INFO] Video saved: eval_videos/libero_10/task4_ep1.mp4 (608 frames)
+2026-03-22 13:24:27,457 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:24:27,457 [INFO]   Task 4 SR: 0/1 = 0.0%
+2026-03-22 13:24:30,153 [INFO] 
+--- Task 5/10: put the white mug on the left plate and put the yellow and white mug on the right plate ---
+2026-03-22 13:24:59,057 [INFO] Video saved: eval_videos/libero_10/task5_ep1.mp4 (608 frames)
+2026-03-22 13:24:59,057 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:24:59,057 [INFO]   Task 5 SR: 0/1 = 0.0%
+2026-03-22 13:25:00,532 [INFO] 
+--- Task 6/10: pick up the book and place it in the back compartment of the caddy ---
+2026-03-22 13:25:26,412 [INFO] Video saved: eval_videos/libero_10/task6_ep1.mp4 (608 frames)
+2026-03-22 13:25:26,412 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:25:26,412 [INFO]   Task 6 SR: 0/1 = 0.0%
+2026-03-22 13:25:28,199 [INFO] 
+--- Task 7/10: put the white mug on the plate and put the chocolate pudding to the right of the plate ---
+2026-03-22 13:25:55,648 [INFO] Video saved: eval_videos/libero_10/task7_ep1.mp4 (608 frames)
+2026-03-22 13:25:55,648 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:25:55,648 [INFO]   Task 7 SR: 0/1 = 0.0%
+2026-03-22 13:25:56,587 [INFO] 
+--- Task 8/10: put both the alphabet soup and the cream cheese box in the basket ---
+2026-03-22 13:26:22,864 [INFO] Video saved: eval_videos/libero_10/task8_ep1.mp4 (608 frames)
+2026-03-22 13:26:22,865 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:26:22,865 [INFO]   Task 8 SR: 0/1 = 0.0%
+2026-03-22 13:26:23,497 [INFO] 
+--- Task 9/10: put both moka pots on the stove ---
+2026-03-22 13:26:49,447 [INFO] Video saved: eval_videos/libero_10/task9_ep1.mp4 (608 frames)
+2026-03-22 13:26:49,447 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:26:49,447 [INFO]   Task 9 SR: 0/1 = 0.0%
+2026-03-22 13:26:50,726 [INFO] 
+--- Task 10/10: put the yellow and white mug in the microwave and close it ---
+2026-03-22 13:27:17,579 [INFO] Video saved: eval_videos/libero_10/task10_ep1.mp4 (608 frames)
+2026-03-22 13:27:17,579 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:27:17,579 [INFO]   Task 10 SR: 0/1 = 0.0%
+2026-03-22 13:27:17,716 [INFO] 
+============================================================
+2026-03-22 13:27:17,716 [INFO] Suite libero_10 Summary: 0/10 = 0.0%
+2026-03-22 13:27:17,716 [INFO] ============================================================
+2026-03-22 13:27:17,721 [INFO] 
+############################################################
+2026-03-22 13:27:17,721 [INFO] # FINAL RESULTS
+2026-03-22 13:27:17,721 [INFO] ############################################################
+2026-03-22 13:27:17,721 [INFO]   libero_10           : 0/10 = 0.0%
+2026-03-22 13:27:17,721 [INFO] 
+Results saved to libero_eval_results.json
+2026-03-22 13:41:40,317 [INFO] 
+############################################################
+2026-03-22 13:41:40,317 [INFO] # Evaluating suite: libero_10
+2026-03-22 13:41:40,317 [INFO] ############################################################
+2026-03-22 13:41:40,317 [INFO] 
+============================================================
+2026-03-22 13:41:40,317 [INFO] Suite: libero_10 | Tasks: 10 | Episodes/task: 1
+2026-03-22 13:41:40,317 [INFO] ============================================================
+2026-03-22 13:41:43,180 [INFO] 
+--- Task 1/10: put both the alphabet soup and the tomato sauce in the basket ---
+2026-03-22 13:44:05,822 [INFO] Video saved: eval_videos/libero_10/task1_ep1.mp4 (608 frames)
+2026-03-22 13:44:05,823 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:44:05,823 [INFO]   Task 1 SR: 0/1 = 0.0%
+2026-03-22 13:44:06,983 [INFO] 
+--- Task 2/10: put both the cream cheese box and the butter in the basket ---
+2026-03-22 13:46:38,023 [INFO] Video saved: eval_videos/libero_10/task2_ep1.mp4 (608 frames)
+2026-03-22 13:46:38,023 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:46:38,023 [INFO]   Task 2 SR: 0/1 = 0.0%
+2026-03-22 13:46:39,261 [INFO] 
+--- Task 3/10: turn on the stove and put the moka pot on it ---
+2026-03-22 13:48:59,973 [INFO] Video saved: eval_videos/libero_10/task3_ep1.mp4 (608 frames)
+2026-03-22 13:48:59,974 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:48:59,974 [INFO]   Task 3 SR: 0/1 = 0.0%
+2026-03-22 13:49:01,046 [INFO] 
+--- Task 4/10: put the black bowl in the bottom drawer of the cabinet and close it ---
+2026-03-22 13:51:25,843 [INFO] Video saved: eval_videos/libero_10/task4_ep1.mp4 (608 frames)
+2026-03-22 13:51:25,843 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:51:25,843 [INFO]   Task 4 SR: 0/1 = 0.0%
+2026-03-22 13:51:28,504 [INFO] 
+--- Task 5/10: put the white mug on the left plate and put the yellow and white mug on the right plate ---
+2026-03-22 13:54:01,390 [INFO] Video saved: eval_videos/libero_10/task5_ep1.mp4 (608 frames)
+2026-03-22 13:54:01,390 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:54:01,390 [INFO]   Task 5 SR: 0/1 = 0.0%
+2026-03-22 13:54:02,882 [INFO] 
+--- Task 6/10: pick up the book and place it in the back compartment of the caddy ---
+2026-03-22 13:56:34,924 [INFO] Video saved: eval_videos/libero_10/task6_ep1.mp4 (608 frames)
+2026-03-22 13:56:34,924 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:56:34,925 [INFO]   Task 6 SR: 0/1 = 0.0%
+2026-03-22 13:56:36,651 [INFO] 
+--- Task 7/10: put the white mug on the plate and put the chocolate pudding to the right of the plate ---
+2026-03-22 13:59:13,054 [INFO] Video saved: eval_videos/libero_10/task7_ep1.mp4 (608 frames)
+2026-03-22 13:59:13,055 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 13:59:13,055 [INFO]   Task 7 SR: 0/1 = 0.0%
+2026-03-22 13:59:13,972 [INFO] 
+--- Task 8/10: put both the alphabet soup and the cream cheese box in the basket ---
+2026-03-22 14:01:51,577 [INFO] Video saved: eval_videos/libero_10/task8_ep1.mp4 (608 frames)
+2026-03-22 14:01:51,577 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 14:01:51,577 [INFO]   Task 8 SR: 0/1 = 0.0%
+2026-03-22 14:01:52,262 [INFO] 
+--- Task 9/10: put both moka pots on the stove ---
+2026-03-22 14:04:29,713 [INFO] Video saved: eval_videos/libero_10/task9_ep1.mp4 (608 frames)
+2026-03-22 14:04:29,714 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 14:04:29,714 [INFO]   Task 9 SR: 0/1 = 0.0%
+2026-03-22 14:04:31,028 [INFO] 
+--- Task 10/10: put the yellow and white mug in the microwave and close it ---
+2026-03-22 14:07:07,139 [INFO] Video saved: eval_videos/libero_10/task10_ep1.mp4 (608 frames)
+2026-03-22 14:07:07,139 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-22 14:07:07,139 [INFO]   Task 10 SR: 0/1 = 0.0%
+2026-03-22 14:07:07,320 [INFO] 
+============================================================
+2026-03-22 14:07:07,320 [INFO] Suite libero_10 Summary: 0/10 = 0.0%
+2026-03-22 14:07:07,321 [INFO] ============================================================
+2026-03-22 14:07:07,336 [INFO] 
+############################################################
+2026-03-22 14:07:07,336 [INFO] # FINAL RESULTS
+2026-03-22 14:07:07,336 [INFO] ############################################################
+2026-03-22 14:07:07,336 [INFO]   libero_10           : 0/10 = 0.0%
+2026-03-22 14:07:07,337 [INFO] 
+Results saved to libero_eval_results.json

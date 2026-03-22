@@ -1,0 +1,328 @@
+<mxfile host="app.diagrams.net" modified="2026-03-21" type="device">
+  <diagram name="Stage 2: Action Decoder Training" id="stage2">
+    <mxGraphModel dx="1600" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ==================== TITLE ==================== -->
+        <mxCell id="title" value="&lt;font style=&quot;font-size:20px&quot;&gt;&lt;b&gt;Stage 2：Action Decoder 训练（骨干冻结）&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="350" y="15" width="500" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="训练目标：Flow Matching 速度场预测（动作生成）" style="text;html=1;align=center;fontSize=12;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="400" y="48" width="400" height="22" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== LEGEND ==================== -->
+        <mxCell id="leg_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#E5E7EB;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="20" width="200" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg_t" value="&lt;b&gt;图例&lt;/b&gt;" style="text;html=1;align=center;fontSize=11;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="1245" y="24" width="60" height="18" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg1" value="" style="rounded=1;whiteSpace=wrap;fillColor=#FEE2E2;strokeColor=#EF4444;" vertex="1" parent="1">
+          <mxGeometry x="1195" y="47" width="24" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg1t" value="可训练 (Decoder)" style="text;html=1;align=left;fontSize=10;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="1226" y="45" width="140" height="18" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg2" value="" style="rounded=1;whiteSpace=wrap;fillColor=#DBEAFE;strokeColor=#3B82F6;" vertex="1" parent="1">
+          <mxGeometry x="1195" y="67" width="24" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg2t" value="冻结模块" style="text;html=1;align=left;fontSize=10;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="1226" y="65" width="140" height="18" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg3" value="" style="rounded=1;whiteSpace=wrap;fillColor=#FFEDD5;strokeColor=#F97316;" vertex="1" parent="1">
+          <mxGeometry x="1195" y="87" width="24" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg3t" value="隐藏状态 (h_video)" style="text;html=1;align=left;fontSize=10;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="1226" y="85" width="140" height="18" as="geometry"/>
+        </mxCell>
+
+        <!-- ================================================================ -->
+        <!-- LEFT PATH: FROZEN BACKBONE → h_video                             -->
+        <!-- ================================================================ -->
+
+        <mxCell id="path_left_label" value="&lt;font style=&quot;font-size:13px&quot; color=&quot;#3B82F6&quot;&gt;&lt;b&gt;冻结骨干路径&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="115" y="80" width="170" height="22" as="geometry"/>
+        </mxCell>
+
+        <!-- Video Input -->
+        <mxCell id="video_in" value="&lt;b&gt;视频帧&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot; style=&quot;font-size:10px&quot;&gt;[B, 3, 17, 256, 256]&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="100" y="110" width="200" height="42" as="geometry"/>
+        </mxCell>
+
+        <!-- VAE -->
+        <mxCell id="vae" value="&lt;b&gt;VAE Encoder&lt;/b&gt;  🔒" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#3B82F6;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="182" width="160" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="video_in" target="vae" parent="1"/>
+
+        <!-- z₀ + split -->
+        <mxCell id="z0_split" value="&lt;b&gt;z₀&lt;/b&gt; → Split&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#6B7280&quot;&gt;z&lt;sub&gt;cond&lt;/sub&gt;(2帧) + z&lt;sub&gt;pred&lt;/sub&gt;(3帧)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F9FAFB;strokeColor=#D1D5DB;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="95" y="248" width="210" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="vae" target="z0_split" parent="1"/>
+
+        <!-- Noise addition -->
+        <mxCell id="noise_v" value="&lt;b&gt;+ 视频噪声&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#6B7280&quot;&gt;z&lt;sub&gt;noisy&lt;/sub&gt; = (1−τ&lt;sub&gt;v&lt;/sub&gt;)·z&lt;sub&gt;pred&lt;/sub&gt; + τ&lt;sub&gt;v&lt;/sub&gt;·ε&lt;sub&gt;v&lt;/sub&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="320" width="240" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="z0_split" target="noise_v" parent="1"/>
+
+        <!-- T5 -->
+        <mxCell id="t5" value="&lt;b&gt;T5&lt;/b&gt;  🔒&lt;br&gt;&lt;font style=&quot;font-size:9px&quot; color=&quot;#1E40AF&quot;&gt;[1,512,2048]&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#3B82F6;fontSize=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="350" y="328" width="100" height="38" as="geometry"/>
+        </mxCell>
+
+        <!-- Frozen Transformer -->
+        <mxCell id="frozen_tfm" value="&lt;b&gt;Cosmos DiT + LoRA (Stage 1)&lt;/b&gt;  🔒&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#1E40AF&quot;&gt;28 blocks · 完全冻结 · 无梯度 · BF16&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#3B82F6;fontSize=12;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="400" width="310" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="noise_v" target="frozen_tfm" parent="1"/>
+        <mxCell id="e4b" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#3B82F6;strokeWidth=1.2;endArrow=blockThin;endFill=1;endSize=5;" edge="1" source="t5" target="frozen_tfm" parent="1"/>
+
+        <!-- Hook -->
+        <mxCell id="hook" value="&lt;b&gt;🪝 Hook @ Layer 19&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#9A3412&quot;&gt;提取隐藏状态 [B, T·H'·W', 2048]&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="490" width="270" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#F97316;strokeWidth=2;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="frozen_tfm" target="hook" parent="1"/>
+
+        <!-- Spatial Pooling -->
+        <mxCell id="pool" value="&lt;b&gt;Spatial Mean Pooling&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#6B7280&quot;&gt;[B, T·H'·W', 2048] → [B, 5, 2048]&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="570" width="270" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#F97316;strokeWidth=2;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="hook" target="pool" parent="1"/>
+
+        <!-- h_video -->
+        <mxCell id="h_video" value="&lt;font style=&quot;font-size:14px&quot;&gt;&lt;b&gt;h&lt;sub&gt;video&lt;/sub&gt;&lt;/b&gt;&lt;/font&gt;  &lt;font color=&quot;#6B7280&quot; style=&quot;font-size:10px&quot;&gt;[B, 5, 2048] · detached&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;fontSize=12;arcSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="645" width="230" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#F97316;strokeWidth=2;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="pool" target="h_video" parent="1"/>
+
+        <!-- ================================================================ -->
+        <!-- RIGHT PATH: ACTION INPUTS                                        -->
+        <!-- ================================================================ -->
+
+        <mxCell id="path_right_label" value="&lt;font style=&quot;font-size:13px&quot; color=&quot;#DC2626&quot;&gt;&lt;b&gt;可训练动作路径&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="640" y="80" width="170" height="22" as="geometry"/>
+        </mxCell>
+
+        <!-- GT Actions -->
+        <mxCell id="actions" value="&lt;b&gt;动作 a₀&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot; style=&quot;font-size:10px&quot;&gt;[B, 16, 7] · 已标准化&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="530" y="110" width="165" height="42" as="geometry"/>
+        </mxCell>
+
+        <!-- Proprio -->
+        <mxCell id="proprio" value="&lt;b&gt;本体感知&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#6B7280&quot; style=&quot;font-size:10px&quot;&gt;[B, 8]&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="760" y="110" width="130" height="42" as="geometry"/>
+        </mxCell>
+
+        <!-- Action noise -->
+        <mxCell id="noise_a" value="&lt;b&gt;+ 动作噪声&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#6B7280&quot;&gt;a&lt;sub&gt;noisy&lt;/sub&gt; = (1−τ&lt;sub&gt;a&lt;/sub&gt;)·a₀ + τ&lt;sub&gt;a&lt;/sub&gt;·ε&lt;sub&gt;a&lt;/sub&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="510" y="190" width="205" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="ea1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="actions" target="noise_a" parent="1"/>
+
+        <!-- τ_a sampling -->
+        <mxCell id="tau_a" value="&lt;b&gt;τ&lt;sub&gt;a&lt;/sub&gt;&lt;/b&gt; ~ U^(1/0.999)&lt;br&gt;&lt;font style=&quot;font-size:9px&quot; color=&quot;#6B7280&quot;&gt;Pi0-style 偏重高噪声&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;fontSize=10;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="530" y="262" width="155" height="38" as="geometry"/>
+        </mxCell>
+
+        <!-- Action MLP -->
+        <mxCell id="action_mlp" value="&lt;b&gt;Action MLP&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#991B1B&quot;&gt;7 → 512 → 512 (SiLU)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="530" y="335" width="175" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="ea2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="noise_a" target="action_mlp" parent="1"/>
+
+        <!-- Proprio MLP -->
+        <mxCell id="proprio_mlp" value="&lt;b&gt;Proprio MLP&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#991B1B&quot;&gt;8 → 512 → 512 (SiLU)&lt;br&gt;10% mask → learned token&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="750" y="190" width="185" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ea3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="proprio" target="proprio_mlp" parent="1"/>
+
+        <!-- Sequence construction -->
+        <mxCell id="seq" value="&lt;b&gt;序列拼接 + 位置编码&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#6B7280&quot;&gt;[proprio, action₁, ..., action₁₆] + pos_embed → [B, 17, 512]&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="530" y="420" width="370" height="48" as="geometry"/>
+        </mxCell>
+        <mxCell id="ea4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="action_mlp" target="seq" parent="1"/>
+        <mxCell id="ea5" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="proprio_mlp" target="seq" parent="1"/>
+
+        <!-- Timestep Embedding -->
+        <mxCell id="ts_embed" value="&lt;b&gt;Bilinear-Affine 时间步嵌入&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#991B1B&quot;&gt;Sin(τ&lt;sub&gt;v&lt;/sub&gt;)→MLP ⊙ Sin(τ&lt;sub&gt;a&lt;/sub&gt;)→MLP → SiLU→Linear → cond [B, 512]&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="970" y="330" width="370" height="48" as="geometry"/>
+        </mxCell>
+
+        <!-- ================================================================ -->
+        <!-- CENTER: ACTION DECODER DiT                                       -->
+        <!-- ================================================================ -->
+
+        <!-- Outer Decoder Box -->
+        <mxCell id="dec_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#EF4444;strokeWidth=3;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="420" y="510" width="950" height="490" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="dec_title" value="&lt;font style=&quot;font-size:16px&quot; color=&quot;#DC2626&quot;&gt;&lt;b&gt;ActionDecoderDiT&lt;/b&gt;  🔥  &lt;font style=&quot;font-size:12px&quot;&gt;~67M 参数&lt;/font&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="680" y="518" width="400" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="dec_config" value="&lt;font color=&quot;#6B7280&quot; style=&quot;font-size:11px&quot;&gt;hidden_dim=512 · 8 layers · 8 heads · mlp_ratio=4&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="680" y="540" width="400" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows into decoder -->
+        <mxCell id="e_seq" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="seq" target="dec_box" parent="1"/>
+        <mxCell id="e_ts" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#EF4444;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;entryX=1;entryY=0.15;" edge="1" source="ts_embed" target="dec_box" parent="1"/>
+
+        <!-- h_video → decoder (big orange arrow) -->
+        <mxCell id="e_hv" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#F97316;strokeWidth=3;endArrow=blockThin;endFill=1;endSize=8;entryX=0;entryY=0.5;" edge="1" source="h_video" target="dec_box" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="215" y="755"/>
+              <mxPoint x="400" y="755"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="hv_label" value="&lt;font color=&quot;#F97316&quot; style=&quot;font-size:11px&quot;&gt;&lt;b&gt;h&lt;sub&gt;video&lt;/sub&gt; → Cross-Attn K,V&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="200" y="720" width="180" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== 8× BLOCK DETAIL ==================== -->
+
+        <mxCell id="repeat_label" value="&lt;font style=&quot;font-size:20px&quot; color=&quot;#DC2626&quot;&gt;&lt;b&gt;×8&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="595" width="50" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Block 1: Cross-Attention -->
+        <mxCell id="blk_cross" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#FECACA;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="450" y="575" width="820" height="115" as="geometry"/>
+        </mxCell>
+        <mxCell id="blk_cross_num" value="&lt;font style=&quot;font-size:12px&quot; color=&quot;#DC2626&quot;&gt;&lt;b&gt;①&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="455" y="578" width="25" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="adaln1" value="&lt;b&gt;AdaLN-Zero&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot; color=&quot;#991B1B&quot;&gt;LN(x)·(1+scale)+shift&lt;br&gt;cond→(shift,scale,gate)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="470" y="600" width="170" height="65" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cross_attn" value="&lt;b&gt;Cross-Attention&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#991B1B&quot;&gt;Q ← action (512d)&lt;br&gt;K, V ← &lt;b&gt;h&lt;sub&gt;video&lt;/sub&gt;&lt;/b&gt; (2048→512)&lt;br&gt;8 heads · scaled dot-product&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="670" y="597" width="260" height="72" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gate1" value="&lt;b&gt;⊕ Gate&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;x + gate·out&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="960" y="607" width="100" height="48" as="geometry"/>
+        </mxCell>
+
+        <!-- Flow arrows within block 1 -->
+        <mxCell id="eb1" style="strokeColor=#EF4444;strokeWidth=1.2;endArrow=blockThin;endFill=1;endSize=5;" edge="1" source="adaln1" target="cross_attn" parent="1"/>
+        <mxCell id="eb2" style="strokeColor=#EF4444;strokeWidth=1.2;endArrow=blockThin;endFill=1;endSize=5;" edge="1" source="cross_attn" target="gate1" parent="1"/>
+
+        <mxCell id="cross_label" value="&lt;font style=&quot;font-size:10px&quot; color=&quot;#B91C1C&quot;&gt;&lt;b&gt;Cross-Attention to h&lt;sub&gt;video&lt;/sub&gt;&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=right;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="615" width="190" height="18" as="geometry"/>
+        </mxCell>
+
+        <!-- Block 2: Self-Attention -->
+        <mxCell id="blk_self" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#FECACA;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="450" y="710" width="820" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="blk_self_num" value="&lt;font style=&quot;font-size:12px&quot; color=&quot;#DC2626&quot;&gt;&lt;b&gt;②&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="455" y="713" width="25" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="adaln2" value="&lt;b&gt;AdaLN-Zero&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="470" y="738" width="170" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="self_attn" value="&lt;b&gt;Self-Attention&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#991B1B&quot;&gt;Q, K, V ← action tokens · 8 heads&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="670" y="732" width="260" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gate2" value="&lt;b&gt;⊕ Gate&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="960" y="740" width="100" height="36" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="eb3" style="strokeColor=#EF4444;strokeWidth=1.2;endArrow=blockThin;endFill=1;endSize=5;" edge="1" source="adaln2" target="self_attn" parent="1"/>
+        <mxCell id="eb4" style="strokeColor=#EF4444;strokeWidth=1.2;endArrow=blockThin;endFill=1;endSize=5;" edge="1" source="self_attn" target="gate2" parent="1"/>
+
+        <mxCell id="self_label" value="&lt;font style=&quot;font-size:10px&quot; color=&quot;#B91C1C&quot;&gt;&lt;b&gt;Self-Attention (action seq)&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=right;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="745" width="190" height="18" as="geometry"/>
+        </mxCell>
+
+        <!-- Block 3: MLP -->
+        <mxCell id="blk_mlp" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#FECACA;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="450" y="830" width="820" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="blk_mlp_num" value="&lt;font style=&quot;font-size:12px&quot; color=&quot;#DC2626&quot;&gt;&lt;b&gt;③&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="455" y="833" width="25" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="adaln3" value="&lt;b&gt;AdaLN-Zero&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="470" y="855" width="170" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="mlp" value="&lt;b&gt;Feed-Forward MLP&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#991B1B&quot;&gt;512 → 2048 (GELU) → 512&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="670" y="850" width="260" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gate3" value="&lt;b&gt;⊕ Gate&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=10;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="960" y="857" width="100" height="36" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="eb5" style="strokeColor=#EF4444;strokeWidth=1.2;endArrow=blockThin;endFill=1;endSize=5;" edge="1" source="adaln3" target="mlp" parent="1"/>
+        <mxCell id="eb6" style="strokeColor=#EF4444;strokeWidth=1.2;endArrow=blockThin;endFill=1;endSize=5;" edge="1" source="mlp" target="gate3" parent="1"/>
+
+        <mxCell id="mlp_label" value="&lt;font style=&quot;font-size:10px&quot; color=&quot;#B91C1C&quot;&gt;&lt;b&gt;FFN (4× expansion)&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=right;" vertex="1" parent="1">
+          <mxGeometry x="1070" y="862" width="190" height="18" as="geometry"/>
+        </mxCell>
+
+        <!-- Output Head -->
+        <mxCell id="out_head" value="&lt;b&gt;LayerNorm → Linear(512→7)&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot; color=&quot;#991B1B&quot;&gt;零初始化 · 仅取 action tokens (跳过 proprio)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="570" y="945" width="340" height="42" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== SECTION: LOSS ==================== -->
+
+        <!-- v_pred output -->
+        <mxCell id="v_pred" value="&lt;b&gt;v&lt;sub&gt;pred&lt;/sub&gt;&lt;/b&gt;  &lt;font color=&quot;#6B7280&quot; style=&quot;font-size:10px&quot;&gt;[B, 16, 7]&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F9FAFB;strokeColor=#D1D5DB;fontSize=12;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="530" y="1040" width="180" height="38" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_out" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6B7280;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="out_head" target="v_pred" parent="1"/>
+
+        <!-- v_target -->
+        <mxCell id="v_tgt" value="&lt;b&gt;v&lt;sub&gt;target&lt;/sub&gt;&lt;/b&gt;  &lt;font color=&quot;#6B7280&quot; style=&quot;font-size:10px&quot;&gt;= ε&lt;sub&gt;a&lt;/sub&gt; − a₀&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F9FAFB;strokeColor=#D1D5DB;fontSize=12;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="780" y="1040" width="170" height="38" as="geometry"/>
+        </mxCell>
+
+        <!-- Loss -->
+        <mxCell id="loss" value="&lt;font style=&quot;font-size:14px&quot;&gt;&lt;b&gt;ℒ = MSE( v&lt;sub&gt;pred&lt;/sub&gt; , v&lt;sub&gt;target&lt;/sub&gt; )&lt;/b&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#DC2626;fontSize=12;arcSize=12;fontColor=#991B1B;" vertex="1" parent="1">
+          <mxGeometry x="560" y="1120" width="340" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="el1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#DC2626;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="v_pred" target="loss" parent="1"/>
+        <mxCell id="el2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#DC2626;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="v_tgt" target="loss" parent="1"/>
+
+        <!-- Optimizer -->
+        <mxCell id="optim" value="&lt;b&gt;AdamW&lt;/b&gt;  &lt;font color=&quot;#6B7280&quot; style=&quot;font-size:10px&quot;&gt;lr=1e-4 · warmup 1K → linear decay · grad_clip=10 · 仅更新 Decoder 参数&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=11;arcSize=12;" vertex="1" parent="1">
+          <mxGeometry x="490" y="1200" width="480" height="38" as="geometry"/>
+        </mxCell>
+        <mxCell id="eopt" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#F59E0B;strokeWidth=1.5;endArrow=blockThin;endFill=1;endSize=6;" edge="1" source="loss" target="optim" parent="1"/>
+
+        <!-- Backward arrow annotation -->
+        <mxCell id="bwd_arrow" value="" style="endArrow=blockThin;endFill=1;dashed=1;strokeColor=#EF4444;strokeWidth=1.5;endSize=6;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="420" y="1200" as="sourcePoint"/>
+            <mxPoint x="420" y="600" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="bwd_label" value="&lt;font color=&quot;#EF4444&quot; style=&quot;font-size:10px&quot;&gt;&lt;b&gt;backward&lt;br&gt;(梯度仅&lt;br&gt;流过 Decoder)&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="370" y="880" width="55" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- No gradient annotation on backbone -->
+        <mxCell id="no_grad" value="&lt;font color=&quot;#3B82F6&quot; style=&quot;font-size:10px&quot;&gt;&lt;b&gt;无梯度&lt;br&gt;∅&lt;/b&gt;&lt;/font&gt;" style="text;html=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="20" y="420" width="40" height="30" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

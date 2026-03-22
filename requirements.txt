@@ -1,0 +1,11 @@
+torch>=2.1
+diffusers>=0.35
+peft>=0.10
+lerobot
+transformers
+accelerate
+einops
+wandb
+tqdm
+sentencepiece
+protobuf

@@ -1,0 +1,246 @@
+"""Inference policy for mimic-video (Algorithm 1 from the paper).
+
+Implements the full inference pipeline:
+1. Encode past frames with VAE
+2. Optionally partially denoise future video frames
+3. Extract hidden states from the backbone at a specified noise level
+4. Fully denoise actions using the action decoder via Euler ODE integration
+"""
+
+import torch
+import torch.nn as nn
+from typing import Optional, Dict
+
+from mimic_video.models.video_backbone import CosmosVideoBackbone
+from mimic_video.models.action_decoder import ActionDecoderDiT
+from mimic_video.models.flow_matching import FlowMatchingScheduler
+from mimic_video.data.transforms import concat_cameras_2x2, normalize_to_neg1_pos1
+
+
+class MimicVideoPolicy(nn.Module):
+    """Inference policy implementing Algorithm 1 from the mimic-video paper.
+
+    At inference time:
+    1. Encode the last 5 condition frames (17 pixel -> 5 latent, 2 cond)
+       Actually: we use the 2 conditioning latent frames from encoded video
+    2. Sample noise for future frames (or partially denoise)
+    3. Forward through backbone at noise level tau_v to get hidden states
+    4. Fully denoise actions from noise via Euler integration (10 steps)
+    5. Return denormalized action chunk
+
+    Key insight: at tau_v=1 (default), only ONE backbone forward pass is needed.
+    """
+
+    def __init__(
+        self,
+        backbone: CosmosVideoBackbone,
+        action_decoder: ActionDecoderDiT,
+        action_stats: Optional[Dict[str, torch.Tensor]] = None,
+        t5_embedding: Optional[torch.Tensor] = None,
+        tau_v: float = 1.0,
+        num_video_denoise_steps: int = 0,
+        num_action_denoise_steps: int = 10,
+        num_cond_latent_frames: int = 2,
+        num_pred_latent_frames: int = 3,
+        num_pixel_frames: int = 17,
+        camera_names: list = None,
+        target_height: int = 480,
+        target_width: int = 640,
+        device: str = "cuda",
+    ):
+        super().__init__()
+
+        self.backbone = backbone
+        self.action_decoder = action_decoder
+        self.fm = FlowMatchingScheduler()
+        self.tau_v = tau_v
+        self.num_video_denoise_steps = num_video_denoise_steps
+        self.num_action_denoise_steps = num_action_denoise_steps
+        self.num_cond_latent_frames = num_cond_latent_frames
+        self.num_pred_latent_frames = num_pred_latent_frames
+        self.num_pixel_frames = num_pixel_frames
+        self.camera_names = camera_names or []
+        self.target_height = target_height
+        self.target_width = target_width
+        self.device = device
+
+        # Action normalization stats
+        if action_stats is not None:
+            self.register_buffer("action_mean", action_stats["mean"])
+            self.register_buffer("action_std", action_stats["std"])
+        else:
+            self.action_mean = None
+            self.action_std = None
+
+        # Precomputed T5 embedding
+        self.t5_embedding = t5_embedding
+
+    def denormalize_actions(self, actions: torch.Tensor) -> torch.Tensor:
+        """Denormalize actions back to original scale."""
+        if self.action_mean is None:
+            return actions
+        return actions * self.action_std.to(actions.device) + self.action_mean.to(actions.device)
+
+    @torch.no_grad()
+    def predict_action(
+        self,
+        video_frames: torch.Tensor,
+        proprio: torch.Tensor,
+        t5_embedding: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Predict action chunk from observation.
+
+        This implements Algorithm 1 from the mimic-video paper.
+
+        Args:
+            video_frames: Concatenated 2x2 camera frames [1, T, C, H, W] in [-1, 1].
+                T should be num_pixel_frames (17 frames).
+            proprio: Current proprioception [1, proprio_dim].
+            t5_embedding: Optional T5 text embedding [1, seq_len, text_dim].
+
+        Returns:
+            Predicted action chunk [1, action_chunk_size, action_dim] (denormalized).
+        """
+        B = 1  # Single sample inference
+        device = self.device
+
+        video_frames = video_frames.to(device)
+        proprio = proprio.to(device).float()
+
+        # Get T5 embedding
+        if t5_embedding is not None:
+            t5_emb = t5_embedding.to(device)
+        elif self.t5_embedding is not None:
+            t5_emb = self.t5_embedding.to(device)
+        else:
+            raise ValueError("No T5 embedding available for inference.")
+
+        # 1. Encode video frames with VAE
+        # video_frames: [1, T, C, H, W] -> [1, C, T, H, W]
+        video_bcthw = video_frames.permute(0, 2, 1, 3, 4)
+
+        self.backbone.move_vae_to(device)
+        z_all = self.backbone.encode_video(video_bcthw)  # [1, C_lat, T_lat, H_lat, W_lat]
+        self.backbone.move_vae_to("cpu")
+
+        # Split: z_cond (first 2 latent frames), z_pred_clean (last 3, for reference)
+        z_cond = z_all[:, :, :self.num_cond_latent_frames]
+        T_lat_total = z_all.shape[2]
+
+        # 2. Handle future video frames
+        C_lat, H_lat, W_lat = z_all.shape[1], z_all.shape[3], z_all.shape[4]
+
+        if self.tau_v >= 1.0:
+            # tau_v = 1: pure noise, no video denoising needed (fastest)
+            z_future = torch.randn(
+                B, C_lat, self.num_pred_latent_frames, H_lat, W_lat, device=device
+            )
+            current_tau_v = torch.ones(B, device=device)
+        elif self.num_video_denoise_steps > 0:
+            # Partially denoise future frames from tau=1 to tau=tau_v
+            z_future = torch.randn(
+                B, C_lat, self.num_pred_latent_frames, H_lat, W_lat, device=device
+            )
+
+            # Euler integration from tau=1 to tau=tau_v
+            num_steps = self.num_video_denoise_steps
+            dt = (self.tau_v - 1.0) / num_steps
+            tau = 1.0
+
+            for _ in range(num_steps):
+                tau_tensor = torch.full((B,), tau, device=device)
+                raw_output, _ = self.backbone.forward_transformer(
+                    z_noisy=z_future,
+                    z_cond=z_cond,
+                    tau_v=tau_tensor,
+                    encoder_hidden_states=t5_emb,
+                )
+                # raw_output is velocity v = eps - x_0
+                # In flow matching ODE: dx/dt = v, but we use the Cosmos parameterized output
+                T_cond = self.num_cond_latent_frames
+                v_pred = raw_output[:, :, T_cond:]
+                z_future = z_future + v_pred * dt
+                tau = tau + dt
+
+            current_tau_v = torch.full((B,), self.tau_v, device=device)
+        else:
+            # Use the encoded future frames at tau_v=0 (clean)
+            z_future = z_all[:, :, self.num_cond_latent_frames:]
+            current_tau_v = torch.zeros(B, device=device)
+
+        # 3. Forward through backbone to extract hidden states at tau_v
+        self.backbone.forward_transformer(
+            z_noisy=z_future,
+            z_cond=z_cond,
+            tau_v=current_tau_v,
+            encoder_hidden_states=t5_emb.to(self.backbone.dtype),
+        )
+
+        # Get and pool hidden states
+        h_raw = self.backbone.get_captured_hidden_states()
+        h_pooled = self.backbone.pool_hidden_states(
+            h_raw.float(), num_latent_frames=T_lat_total
+        )  # [1, T_lat, hidden_dim]
+
+        # 4. Fully denoise actions via Euler integration
+        action_chunk_size = self.action_decoder.action_chunk_size
+        action_dim = self.action_decoder.action_dim
+
+        # Start from pure noise
+        a_noise = torch.randn(B, action_chunk_size, action_dim, device=device)
+
+        def action_model_fn(a_t, tau):
+            tau_a_tensor = torch.full((B,), tau, device=device)
+            velocity = self.action_decoder(
+                noisy_actions=a_t,
+                proprio=proprio,
+                h_video=h_pooled,
+                tau_a=tau_a_tensor,
+                tau_v=current_tau_v,
+                training=False,
+            )
+            return velocity
+
+        # Euler ODE solve from tau=1 (noise) to tau=0 (clean)
+        a_clean = self.fm.ode_solve_euler(
+            model_fn=action_model_fn,
+            x_init=a_noise,
+            num_steps=self.num_action_denoise_steps,
+            tau_start=1.0,
+            tau_end=0.0,
+        )
+
+        # 5. Denormalize actions
+        a_clean = self.denormalize_actions(a_clean)
+
+        return a_clean  # [1, action_chunk_size, action_dim]
+
+    @torch.no_grad()
+    def predict_action_from_obs(
+        self,
+        camera_images: dict,
+        proprio: torch.Tensor,
+        t5_embedding: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Predict actions directly from raw camera observations.
+
+        This is a convenience method that handles camera concatenation.
+
+        Args:
+            camera_images: Dict mapping camera names to image tensors [T, C, H, W].
+            proprio: Current proprioception [proprio_dim].
+            t5_embedding: Optional T5 text embedding.
+
+        Returns:
+            Action chunk [1, action_chunk_size, action_dim] (denormalized).
+        """
+        # Concatenate cameras
+        frames_list = [camera_images[name] for name in self.camera_names]
+        video = concat_cameras_2x2(frames_list, self.target_height, self.target_width)
+        video = normalize_to_neg1_pos1(video)
+
+        # Add batch dimension
+        video = video.unsqueeze(0)  # [1, T, C, H, W]
+        proprio = proprio.unsqueeze(0)  # [1, proprio_dim]
+
+        return self.predict_action(video, proprio, t5_embedding)
