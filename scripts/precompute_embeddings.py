@@ -74,10 +74,16 @@ def get_task_descriptions_from_dataset(repo_id):
     # LeRobot v3.0 stores tasks in meta/tasks
     tasks = {}
     if hasattr(dataset.meta, 'tasks') and dataset.meta.tasks is not None:
-        for task_entry in dataset.meta.tasks:
-            task_idx = task_entry["task_index"]
-            task_desc = task_entry["task"]
-            tasks[task_idx] = task_desc
+        if hasattr(dataset.meta.tasks, 'iterrows'):
+            # LeRobot v3.0: tasks is a pandas DataFrame where index is the task string
+            for task_desc, row in dataset.meta.tasks.iterrows():
+                tasks[int(row["task_index"])] = str(task_desc)
+        else:
+            # Older versions: list of dicts
+            for task_entry in dataset.meta.tasks:
+                task_idx = int(task_entry["task_index"])
+                task_desc = str(task_entry["task"])
+                tasks[task_idx] = task_desc
     else:
         # Fallback: try to read tasks.jsonl directly from cache
         cache_dir = dataset.root
