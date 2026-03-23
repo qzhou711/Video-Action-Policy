@@ -168,6 +168,8 @@ class Stage1Trainer:
                 t5_emb = t5_emb.expand(B, -1, -1)
         elif "t5_embedding" in batch:
             t5_emb = batch["t5_embedding"].to(self.device, dtype=self.compute_dtype)
+            if t5_emb.ndim == 4 and t5_emb.shape[1] == 1:
+                t5_emb = t5_emb.squeeze(1)
         else:
             raise ValueError("No T5 embedding available. Either precompute or include in batch.")
 
