@@ -40,8 +40,8 @@ class DataConfig:
     # Dataset (overridden by get_suite_data_config)
     repo_id: str = "lerobot/libero_object_image"
     num_episodes: int = 454
-    train_episodes: int = 408
-    val_episodes: int = 46
+    train_episodes: int = 454  # 100% for training
+    val_episodes: int = 0
 
     # Frame dimensions (per camera)
     camera_height: int = 256
@@ -118,8 +118,8 @@ def get_suite_data_config(suite_name: str) -> DataConfig:
 
 @dataclass
 class ModelConfig:
-    # Cosmos model
-    cosmos_model_id: str = "nvidia/Cosmos-Predict2-2B-Video2World"
+    # Cosmos backbone
+    cosmos_model_id: str = "/home/hulab/projects/world_action_model/DIT4DIT/checkpoints/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18"
 
     # LoRA
     lora_rank: int = 16
