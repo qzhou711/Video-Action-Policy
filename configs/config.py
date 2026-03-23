@@ -1,15 +1,47 @@
 """Dataclass-based configs for mimic-video training."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
+
+
+# ============================================================
+# LIBERO Suite Registry
+# ============================================================
+LIBERO_SUITES: Dict[str, Dict] = {
+    "libero_spatial": {
+        "repo_id": "lerobot/libero_spatial_image",
+        "num_episodes": 432,
+        "train_episodes": 432,
+        "val_episodes": 0,
+    },
+    "libero_object": {
+        "repo_id": "lerobot/libero_object_image",
+        "num_episodes": 454,
+        "train_episodes": 454,
+        "val_episodes": 0,
+    },
+    "libero_goal": {
+        "repo_id": "lerobot/libero_goal_image",
+        "num_episodes": 428,
+        "train_episodes": 428,
+        "val_episodes": 0,
+    },
+    "libero_10": {
+        "repo_id": "lerobot/libero_10_image",
+        "num_episodes": 379,
+        "train_episodes": 379,
+        "val_episodes": 0,
+    },
+}
 
 
 @dataclass
 class DataConfig:
-    repo_id: str = "lerobot/libero_10"
-    num_episodes: int = 379
-    train_episodes: int = 340
-    val_episodes: int = 39
+    # Dataset (overridden by get_suite_data_config)
+    repo_id: str = "lerobot/libero_object_image"
+    num_episodes: int = 454
+    train_episodes: int = 408
+    val_episodes: int = 46
 
     # Frame dimensions (per camera)
     camera_height: int = 256
@@ -41,6 +73,7 @@ class DataConfig:
     )
 
     # Actions
+    action_norm_type: str = "min-max"  # "min-max" (LIBERO, mimic) or "mean-std" (BridgeDataV2)
     action_chunk_size: int = 16
     action_dim: int = 7  # x, y, z, roll, pitch, yaw, gripper
     proprio_dim: int = 8  # x, y, z, rx, ry, rz, rw, gripper
@@ -51,13 +84,36 @@ class DataConfig:
     )
 
     # Proprioception masking probability during training
-    proprio_mask_prob: float = 0.1
+    proprio_mask_prob: float = 0.5
 
-    # Text prompt for the task
-    task_prompt: str = "Complete the manipulation task."
+    # Text prompts for tasks (auto-populated from dataset metadata if None)
+    task_prompts: Optional[List[str]] = None
 
     # Precomputed embeddings path
     precomputed_dir: str = "precomputed/"
+
+
+def get_suite_data_config(suite_name: str) -> DataConfig:
+    """Create a DataConfig with suite-specific settings.
+
+    Args:
+        suite_name: One of 'libero_spatial', 'libero_object', 'libero_goal', 'libero_10'.
+
+    Returns:
+        DataConfig with repo_id, episodes, and precomputed_dir set for the suite.
+    """
+    if suite_name not in LIBERO_SUITES:
+        available = ", ".join(LIBERO_SUITES.keys())
+        raise ValueError(f"Unknown suite '{suite_name}'. Available: {available}")
+
+    suite = LIBERO_SUITES[suite_name]
+    return DataConfig(
+        repo_id=suite["repo_id"],
+        num_episodes=suite["num_episodes"],
+        train_episodes=suite["train_episodes"],
+        val_episodes=suite["val_episodes"],
+        precomputed_dir=f"precomputed/{suite_name}/",
+    )
 
 
 @dataclass
@@ -85,12 +141,12 @@ class ModelConfig:
 
     # Hidden state extraction
     hidden_state_layer: int = 19  # Layer k=19
-    hidden_state_pool: str = "none"  # "mean" (5 tokens) or "none" (all ~6000 tokens)
+    hidden_state_pool: str = "mean"  # "mean" (global mean pooling, paper default) or "none" (all ~6000 tokens)
 
-    # Action decoder
-    decoder_hidden_dim: int = 512
-    decoder_num_layers: int = 8
-    decoder_num_heads: int = 8
+    # Action decoder (paper: 12-layer transformer, 16 heads, hidden dim 1024)
+    decoder_hidden_dim: int = 1024
+    decoder_num_layers: int = 12
+    decoder_num_heads: int = 16
     decoder_mlp_ratio: int = 4
     backbone_hidden_dim: int = 2048  # Cosmos transformer hidden dim
 
@@ -142,9 +198,6 @@ class Stage2Config:
     dtype: str = "bf16"
     gradient_checkpointing: bool = True
 
-    # Action flow matching tau sampling
-    # pi0-style: U^(1/power) where U~Uniform(0,1)
-    tau_power: float = 0.999
 
     # Logging
     log_every: int = 10

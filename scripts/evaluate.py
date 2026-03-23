@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from configs.config import DataConfig, ModelConfig, Stage2Config
+from configs.config import DataConfig, ModelConfig, Stage2Config, get_suite_data_config, LIBERO_SUITES
 from mimic_video.data.dataset import MimicVideoDataset
 from mimic_video.models.video_backbone import CosmosVideoBackbone
 from mimic_video.models.action_decoder import ActionDecoderDiT
@@ -93,23 +93,56 @@ def evaluate_action_prediction(
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate mimic-video")
-    parser.add_argument("--stage1_checkpoint", type=str, required=True, help="Path to Stage 1 LoRA checkpoint")
-    parser.add_argument("--stage2_checkpoint", type=str, required=True, help="Path to Stage 2 action decoder checkpoint")
-    parser.add_argument("--precomputed_dir", type=str, default="precomputed/")
+    parser.add_argument("--suite", type=str, default=None,
+                        choices=list(LIBERO_SUITES.keys()),
+                        help="LIBERO suite name (auto-sets config and checkpoint dirs)")
+    parser.add_argument("--stage1_checkpoint", type=str, default=None, help="Path to Stage 1 LoRA checkpoint")
+    parser.add_argument("--stage2_checkpoint", type=str, default=None, help="Path to Stage 2 action decoder checkpoint")
+    parser.add_argument("--precomputed_dir", type=str, default=None)
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--tau_v", type=float, default=1.0, help="Video noise level at inference (1.0 = no denoising)")
     parser.add_argument("--num_action_steps", type=int, default=10, help="Number of Euler steps for action denoising")
     parser.add_argument("--max_samples", type=int, default=200, help="Max samples to evaluate")
     args = parser.parse_args()
 
-    data_config = DataConfig()
+    # Auto-set paths based on suite
+    if args.suite:
+        data_config = get_suite_data_config(args.suite)
+        if args.stage1_checkpoint is None:
+            args.stage1_checkpoint = f"checkpoints/{args.suite}/stage1/final"
+        if args.stage2_checkpoint is None:
+            args.stage2_checkpoint = f"checkpoints/{args.suite}/stage2/final"
+        if args.precomputed_dir is None:
+            args.precomputed_dir = data_config.precomputed_dir
+    else:
+        data_config = DataConfig()
+        if args.stage1_checkpoint is None:
+            args.stage1_checkpoint = "checkpoints/stage1/final"
+        if args.stage2_checkpoint is None:
+            args.stage2_checkpoint = "checkpoints/stage2/final"
+        if args.precomputed_dir is None:
+            args.precomputed_dir = "precomputed/"
+
     model_config = ModelConfig()
 
-    # Load precomputed T5 embedding
-    t5_path = os.path.join(args.precomputed_dir, "t5_embedding.pt")
+    # Load precomputed T5 embedding(s)
+    multi_t5_path = os.path.join(args.precomputed_dir, "t5_embeddings.pt")
+    single_t5_path = os.path.join(args.precomputed_dir, "t5_embedding.pt")
+    desc_path = os.path.join(args.precomputed_dir, "t5_task_descriptions.json")
+
     t5_embedding = None
-    if os.path.exists(t5_path):
-        t5_embedding = torch.load(t5_path, map_location="cpu", weights_only=True)
+    t5_embeddings_dict = None
+    task_descriptions = {}
+
+    if os.path.exists(multi_t5_path):
+        t5_embeddings_dict = torch.load(multi_t5_path, map_location="cpu", weights_only=True)
+        if os.path.exists(desc_path):
+            import json
+            with open(desc_path, "r") as f:
+                task_descriptions = {int(k): v for k, v in json.load(f).items()}
+        print(f"Loaded multi-task T5 embeddings for {len(t5_embeddings_dict)} tasks.")
+    elif os.path.exists(single_t5_path):
+        t5_embedding = torch.load(single_t5_path, map_location="cpu", weights_only=True)
 
     # Load action stats
     stats_path = os.path.join(args.precomputed_dir, "action_stats.pt")
@@ -183,6 +216,8 @@ def main():
         action_decoder=action_decoder,
         action_stats=action_stats,
         t5_embedding=t5_embedding,
+        t5_embeddings_dict=t5_embeddings_dict,
+        task_descriptions=task_descriptions,
         tau_v=args.tau_v,
         num_action_denoise_steps=args.num_action_steps,
         num_cond_latent_frames=data_config.num_cond_latent_frames,

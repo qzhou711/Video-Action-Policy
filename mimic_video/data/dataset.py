@@ -32,6 +32,7 @@ class MimicVideoDataset(Dataset):
         episode_indices: Optional[list] = None,
         precomputed_dir: Optional[str] = None,
         action_stats: Optional[Dict[str, torch.Tensor]] = None,
+        action_norm_type: str = "min-max",
         fps: int = 10,
     ):
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -47,6 +48,7 @@ class MimicVideoDataset(Dataset):
         self.target_height = target_height
         self.target_width = target_width
         self.precomputed_dir = precomputed_dir
+        self.action_norm_type = action_norm_type
         self.fps = fps
 
         # Only use delta_timestamps for cameras (video decode needs it)
@@ -63,17 +65,59 @@ class MimicVideoDataset(Dataset):
         self._build_valid_indices(episode_indices)
 
         if action_stats is not None:
-            self.action_mean = action_stats["mean"]
-            self.action_std = action_stats["std"]
+            self.action_mean = action_stats.get("mean", None)
+            self.action_std = action_stats.get("std", None)
+            self.action_min = action_stats.get("min", None)
+            self.action_max = action_stats.get("max", None)
         else:
             self.action_mean = None
             self.action_std = None
+            self.action_min = None
+            self.action_max = None
 
-        self.t5_embedding = None
-        if precomputed_dir and os.path.exists(os.path.join(precomputed_dir, "t5_embedding.pt")):
-            self.t5_embedding = torch.load(
-                os.path.join(precomputed_dir, "t5_embedding.pt"), map_location="cpu", weights_only=True
-            )
+        self.t5_embedding = None       # single-task fallback [1, seq_len, dim]
+        self.t5_embeddings = None       # multi-task dict {task_index: [1, seq_len, dim]}
+
+        # Try multi-task first, then single-task
+        if precomputed_dir:
+            multi_path = os.path.join(precomputed_dir, "t5_embeddings.pt")
+            single_path = os.path.join(precomputed_dir, "t5_embedding.pt")
+            if os.path.exists(multi_path):
+                self.t5_embeddings = torch.load(multi_path, map_location="cpu", weights_only=True)
+            elif os.path.exists(single_path):
+                self.t5_embedding = torch.load(single_path, map_location="cpu", weights_only=True)
+
+        # Build episode_index → task_index mapping for multi-task datasets
+        self.episode_to_task = {}
+        self._build_episode_task_map()
+
+    def _build_episode_task_map(self):
+        """Build a mapping from episode_index to task_index using dataset metadata."""
+        try:
+            hf = self.lerobot_dataset.hf_dataset
+            if "task_index" in hf.column_names and "episode_index" in hf.column_names:
+                # Sample the first row of each episode to get its task_index
+                episodes = self.lerobot_dataset.meta.episodes
+                for ep in episodes:
+                    ep_idx = ep["episode_index"]
+                    first_frame = ep["dataset_from_index"]
+                    row = hf[first_frame]
+                    t_idx = row["task_index"]
+                    if isinstance(t_idx, torch.Tensor):
+                        t_idx = t_idx.item()
+                    self.episode_to_task[ep_idx] = int(t_idx)
+        except Exception:
+            pass  # Not a multi-task dataset, no mapping needed
+
+    def _get_task_index_for_global_idx(self, global_idx: int) -> int:
+        """Get the task_index for a given global frame index."""
+        if not self.episode_to_task:
+            return 0
+        row = self.lerobot_dataset.hf_dataset[global_idx]
+        t_idx = row.get("task_index", 0)
+        if isinstance(t_idx, torch.Tensor):
+            t_idx = t_idx.item()
+        return int(t_idx)
 
     def _build_valid_indices(self, episode_indices: Optional[list] = None):
         self.valid_indices = []
@@ -101,16 +145,41 @@ class MimicVideoDataset(Dataset):
         return len(self.valid_indices)
 
     def normalize_actions(self, actions: torch.Tensor) -> torch.Tensor:
-        if self.action_mean is None:
-            return actions
         device = actions.device
-        return (actions - self.action_mean.to(device)) / self.action_std.to(device)
+        if self.action_norm_type == "min-max":
+            if self.action_min is None or self.action_max is None:
+                return actions
+            # Normalize to [-1, 1]
+            # First map to [0, 1]
+            a_min = self.action_min.to(device)
+            a_max = self.action_max.to(device)
+            scaled = (actions - a_min) / (a_max - a_min + 1e-4) # 1e-4 prevents div by 0
+            # Map to [-1, 1]
+            return scaled * 2.0 - 1.0
+        elif self.action_norm_type == "mean-std":
+            if self.action_mean is None or self.action_std is None:
+                return actions
+            return (actions - self.action_mean.to(device)) / self.action_std.to(device)
+        else:
+            return actions
 
     def denormalize_actions(self, actions: torch.Tensor) -> torch.Tensor:
-        if self.action_mean is None:
-            return actions
         device = actions.device
-        return actions * self.action_std.to(device) + self.action_mean.to(device)
+        if self.action_norm_type == "min-max":
+            if self.action_min is None or self.action_max is None:
+                return actions
+            a_min = self.action_min.to(device)
+            a_max = self.action_max.to(device)
+            # Reverse map from [-1, 1] to [0, 1]
+            unscaled = (actions + 1.0) / 2.0
+            # Map to original range
+            return unscaled * (a_max - a_min + 1e-4) + a_min
+        elif self.action_norm_type == "mean-std":
+            if self.action_mean is None or self.action_std is None:
+                return actions
+            return actions * self.action_std.to(device) + self.action_mean.to(device)
+        else:
+            return actions
 
     def _get_state_action(self, global_idx: int):
         """Load state and action chunk by directly indexing consecutive frames."""
@@ -154,7 +223,9 @@ class MimicVideoDataset(Dataset):
         
         return {
             "mean": all_actions.mean(dim=0),
-            "std": all_actions.std(dim=0).clamp(min=1e-4)
+            "std": all_actions.std(dim=0).clamp(min=1e-4),
+            "min": all_actions.min(dim=0)[0],
+            "max": all_actions.max(dim=0)[0],
         }
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
@@ -183,7 +254,16 @@ class MimicVideoDataset(Dataset):
             "actions": actions,
         }
 
-        if self.t5_embedding is not None:
+        # Multi-task: return per-sample T5 embedding based on task_index
+        if self.t5_embeddings is not None:
+            task_idx = self._get_task_index_for_global_idx(global_idx)
+            if task_idx in self.t5_embeddings:
+                result["t5_embedding"] = self.t5_embeddings[task_idx]
+            else:
+                # Fallback to first available embedding
+                first_key = sorted(self.t5_embeddings.keys())[0]
+                result["t5_embedding"] = self.t5_embeddings[first_key]
+        elif self.t5_embedding is not None:
             result["t5_embedding"] = self.t5_embedding
 
         return result

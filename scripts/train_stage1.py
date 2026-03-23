@@ -24,7 +24,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from configs.config import DataConfig, ModelConfig, Stage1Config
+from configs.config import DataConfig, ModelConfig, Stage1Config, get_suite_data_config, LIBERO_SUITES
 from mimic_video.data.dataset import MimicVideoDataset
 from mimic_video.models.video_backbone import CosmosVideoBackbone
 from mimic_video.training.stage1_trainer import Stage1Trainer
@@ -49,9 +49,12 @@ def cleanup_distributed():
 
 def main():
     parser = argparse.ArgumentParser(description="Stage 1: LoRA finetuning")
+    parser.add_argument("--suite", type=str, default=None,
+                        choices=list(LIBERO_SUITES.keys()),
+                        help="LIBERO suite name (auto-sets repo_id, episodes, dirs)")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
     parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--precomputed_dir", type=str, default="precomputed/")
+    parser.add_argument("--precomputed_dir", type=str, default=None)
     args = parser.parse_args()
 
     # Setup distributed
@@ -64,9 +67,21 @@ def main():
     torch.backends.cudnn.allow_tf32 = True
     torch.backends.cudnn.benchmark = True
 
-    data_config = DataConfig()
+    # Config: use suite if specified, otherwise defaults
+    if args.suite:
+        data_config = get_suite_data_config(args.suite)
+    else:
+        data_config = DataConfig()
+    if args.precomputed_dir:
+        data_config.precomputed_dir = args.precomputed_dir
+
     model_config = ModelConfig()
     train_config = Stage1Config()
+
+    # Auto-set per-suite output dir and wandb name
+    if args.suite:
+        train_config.output_dir = f"checkpoints/{args.suite}/stage1"
+        train_config.wandb_run_name = f"stage1-{args.suite}"
 
     # Auto-compute gradient accumulation for multi-GPU
     effective_batch = train_config.batch_size
@@ -80,16 +95,25 @@ def main():
               f" × {gradient_accumulation_steps} accum = {per_step_samples * gradient_accumulation_steps} effective")
         print(f"{'='*60}\n")
 
-    # Load precomputed T5 embedding
-    t5_path = os.path.join(args.precomputed_dir, "t5_embedding.pt")
-    if os.path.exists(t5_path):
+    # Load precomputed T5 embedding(s)
+    # Multi-task: t5_embeddings.pt (dict) → dataset handles per-sample, trainer gets None
+    # Single-task: t5_embedding.pt (tensor) → trainer broadcasts to all samples
+    multi_t5_path = os.path.join(args.precomputed_dir, "t5_embeddings.pt")
+    single_t5_path = os.path.join(args.precomputed_dir, "t5_embedding.pt")
+
+    t5_embedding = None  # What we pass to the trainer
+    if os.path.exists(multi_t5_path):
         if is_main:
-            print(f"Loading precomputed T5 embedding from {t5_path}")
-        t5_embedding = torch.load(t5_path, map_location="cpu", weights_only=True)
+            print(f"Found multi-task T5 embeddings at {multi_t5_path}")
+            print("  → Dataset will provide per-sample T5 embeddings via batch.")
+        # Don't load here — dataset will handle it
+    elif os.path.exists(single_t5_path):
+        if is_main:
+            print(f"Loading single-task T5 embedding from {single_t5_path}")
+        t5_embedding = torch.load(single_t5_path, map_location="cpu", weights_only=True)
     else:
         if is_main:
             print("WARNING: No precomputed T5 embedding found. Run precompute_embeddings.py first.")
-        t5_embedding = None
 
     # Create dataset
     if is_main:
@@ -109,6 +133,7 @@ def main():
         target_width=data_config.camera_width,
         episode_indices=train_episodes,
         precomputed_dir=args.precomputed_dir,
+        action_norm_type=data_config.action_norm_type,
         fps=data_config.fps,
     )
 

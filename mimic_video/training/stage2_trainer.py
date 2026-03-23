@@ -33,7 +33,7 @@ class Stage2Trainer:
         total_steps: int = 26000,
         gradient_accumulation_steps: int = 32,
         lr_schedule: str = "linear_decay",
-        tau_power: float = 0.999,
+
         dtype: str = "bf16",
         output_dir: str = "checkpoints/stage2",
         log_every: int = 10,
@@ -42,6 +42,7 @@ class Stage2Trainer:
         wandb_run_name: Optional[str] = None,
         precomputed_t5_embedding: Optional[torch.Tensor] = None,
         num_cond_latent_frames: int = 2,
+        hidden_state_pool: str = "mean",
         device: str = "cuda",
         rank: int = 0,
         world_size: int = 1,
@@ -57,11 +58,12 @@ class Stage2Trainer:
         self.total_steps = total_steps
         self.gradient_accumulation_steps = gradient_accumulation_steps
         self.lr_schedule = lr_schedule
-        self.tau_power = tau_power
+
         self.output_dir = output_dir
         self.log_every = log_every
         self.save_every = save_every
         self.num_cond_latent_frames = num_cond_latent_frames
+        self.hidden_state_pool = hidden_state_pool
         self.device = device
         self.precomputed_t5_embedding = precomputed_t5_embedding
         self.rank = rank
@@ -177,14 +179,14 @@ class Stage2Trainer:
             raise RuntimeError("No hidden states captured. Check hook registration.")
 
         h_pooled = self.backbone.pool_hidden_states(
-            h_raw.float(), num_latent_frames=T_total
-        )  # [B, T_lat, hidden_dim]
+            h_raw.float(), num_latent_frames=T_total, mode=self.hidden_state_pool
+        )  # shape depends on pool mode: "mean" -> [B, T, D], "none" -> [B, T*H'*W', D]
 
         # Detach hidden states (backbone is frozen, but be explicit)
         h_pooled = h_pooled.detach()
 
         # 4. Sample action noise and timestep
-        tau_a = self.fm.sample_tau_action(B, device=actions.device, power=self.tau_power)
+        tau_a = self.fm.sample_tau_action(B, device=actions.device)
         eps_a = torch.randn_like(actions)
 
         # Create noisy actions

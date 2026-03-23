@@ -73,24 +73,31 @@ class FlowMatchingScheduler:
     def sample_tau_action(
         batch_size: int,
         device: torch.device,
-        power: float = 0.999,
+        eps: float = 0.001,
     ) -> torch.Tensor:
-        """Sample timesteps with pi0-style power-law distribution for actions.
+        """Sample timesteps with sqrt distribution for actions (paper Eq. 3).
 
-        tau = U^(1/power) where U ~ Uniform(0, 1).
-        With power close to 1 (e.g., 0.999), this biases toward tau=1 (noisy),
+        T_a(tau_a) ∝ sqrt(tau_a - eps), where eps = 0.001.
+
+        Uses inverse CDF sampling:
+          CDF(tau) = integral_eps^tau sqrt(t - eps) dt / Z
+                   = (2/3)(tau - eps)^(3/2) / Z
+          where Z = (2/3)(1 - eps)^(3/2).
+          Inverse: tau = U^(2/3) * (1 - eps) + eps, U ~ Uniform(0, 1).
+
+        This biases sampling toward higher tau values (noisier),
         making the model focus on the difficult early denoising steps.
 
         Args:
             batch_size: Number of timesteps to sample.
             device: Device to create tensor on.
-            power: Power parameter (default 0.999).
+            eps: Small offset to avoid tau=0 (default 0.001).
 
         Returns:
-            Tensor of shape [B] with values in (0, 1).
+            Tensor of shape [B] with values in [eps, 1].
         """
         u = torch.rand(batch_size, device=device).clamp(min=1e-6)
-        return u.pow(1.0 / power)
+        return u.pow(2.0 / 3.0) * (1.0 - eps) + eps
 
     @staticmethod
     def ode_solve_euler(

@@ -36,7 +36,7 @@ import torch.nn.functional as F
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from configs.config import DataConfig, ModelConfig
+from configs.config import DataConfig, ModelConfig, get_suite_data_config, LIBERO_SUITES
 from mimic_video.models.video_backbone import CosmosVideoBackbone
 from mimic_video.models.action_decoder import ActionDecoderDiT
 from mimic_video.inference.policy import MimicVideoPolicy
@@ -115,7 +115,10 @@ class FrameBuffer:
 
 def load_model(args) -> MimicVideoPolicy:
     """Load the trained mimic-video model."""
-    data_config = DataConfig()
+    if args.suite:
+        data_config = get_suite_data_config(args.suite)
+    else:
+        data_config = DataConfig()
     model_config = ModelConfig()
 
     device = args.device
@@ -163,12 +166,28 @@ def load_model(args) -> MimicVideoPolicy:
     else:
         log.warning("No action_stats.pt found — actions will NOT be denormalized!")
 
-    # Load T5 embedding
+    # Load T5 embedding(s)
     t5_embedding = None
-    t5_path = os.path.join(precomputed_dir, "t5_embedding.pt")
-    if os.path.exists(t5_path):
-        t5_embedding = torch.load(t5_path, map_location="cpu", weights_only=True)
-        log.info("Loaded precomputed T5 embedding.")
+    t5_embeddings_dict = None
+
+    multi_t5_path = os.path.join(precomputed_dir, "t5_embeddings.pt")
+    single_t5_path = os.path.join(precomputed_dir, "t5_embedding.pt")
+    desc_path = os.path.join(precomputed_dir, "t5_task_descriptions.json")
+
+    if os.path.exists(multi_t5_path):
+        t5_embeddings_dict = torch.load(multi_t5_path, map_location="cpu", weights_only=True)
+        # Also load task descriptions for prompt matching
+        task_descriptions = {}
+        if os.path.exists(desc_path):
+            with open(desc_path, "r") as f:
+                task_descriptions = {int(k): v for k, v in json.load(f).items()}
+        log.info(f"Loaded multi-task T5 embeddings for {len(t5_embeddings_dict)} tasks.")
+        for idx, desc in sorted(task_descriptions.items()):
+            log.info(f"  Task {idx}: {desc}")
+    elif os.path.exists(single_t5_path):
+        t5_embedding = torch.load(single_t5_path, map_location="cpu", weights_only=True)
+        task_descriptions = {}
+        log.info("Loaded single-task T5 embedding.")
 
     log.info("Creating inference policy...")
     policy = MimicVideoPolicy(
@@ -176,6 +195,8 @@ def load_model(args) -> MimicVideoPolicy:
         action_decoder=action_decoder,
         action_stats=action_stats,
         t5_embedding=t5_embedding,
+        t5_embeddings_dict=t5_embeddings_dict,
+        task_descriptions=task_descriptions,
         tau_v=args.tau_v,
         num_action_denoise_steps=args.num_action_steps,
         num_cond_latent_frames=data_config.num_cond_latent_frames,
@@ -184,6 +205,8 @@ def load_model(args) -> MimicVideoPolicy:
         camera_names=data_config.camera_names,
         target_height=data_config.camera_height,
         target_width=data_config.camera_width,
+        action_norm_type=data_config.action_norm_type,
+        hidden_state_pool=model_config.hidden_state_pool,
         device=device,
     )
     policy.eval()
@@ -236,9 +259,13 @@ async def handle_client(ws, policy, data_config, frame_buffer):
             # Get full video window
             video = frame_buffer.get_video()  # [1, T, C, H, W]
 
+            # Get task-specific T5 embedding from prompt
+            prompt = data.get("prompt", None)
+            t5_emb = policy.get_t5_embedding_for_prompt(prompt) if prompt else None
+
             # Run inference
             with torch.no_grad():
-                actions = policy.predict_action(video, proprio)  # [1, chunk_size, action_dim]
+                actions = policy.predict_action(video, proprio, t5_embedding=t5_emb)  # [1, chunk_size, action_dim]
 
             action_list = actions[0].cpu().numpy().tolist()
             log.info(f"Inference done. Buffer: {len(frame_buffer.frames)} frames. "
@@ -279,13 +306,32 @@ async def main_server(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="mimic-video model server for LIBERO evaluation")
-    parser.add_argument("--stage1_checkpoint", type=str, required=True)
-    parser.add_argument("--stage2_checkpoint", type=str, required=True)
-    parser.add_argument("--precomputed_dir", type=str, default="precomputed/")
+    parser.add_argument("--suite", type=str, default=None,
+                        choices=list(LIBERO_SUITES.keys()),
+                        help="LIBERO suite name (auto-sets config and checkpoint dirs)")
+    parser.add_argument("--stage1_checkpoint", type=str, default=None)
+    parser.add_argument("--stage2_checkpoint", type=str, default=None)
+    parser.add_argument("--precomputed_dir", type=str, default=None)
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--tau_v", type=float, default=1.0)
     parser.add_argument("--num_action_steps", type=int, default=10)
     args = parser.parse_args()
+
+    # Auto-set checkpoint/precomputed paths based on suite
+    if args.suite:
+        if args.stage1_checkpoint is None:
+            args.stage1_checkpoint = f"checkpoints/{args.suite}/stage1/final"
+        if args.stage2_checkpoint is None:
+            args.stage2_checkpoint = f"checkpoints/{args.suite}/stage2/final"
+        if args.precomputed_dir is None:
+            args.precomputed_dir = f"precomputed/{args.suite}/"
+    else:
+        if args.stage1_checkpoint is None:
+            args.stage1_checkpoint = "checkpoints/stage1/final"
+        if args.stage2_checkpoint is None:
+            args.stage2_checkpoint = "checkpoints/stage2/final"
+        if args.precomputed_dir is None:
+            args.precomputed_dir = "precomputed/"
 
     asyncio.run(main_server(args))

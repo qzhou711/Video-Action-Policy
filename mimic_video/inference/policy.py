@@ -7,9 +7,10 @@ Implements the full inference pipeline:
 4. Fully denoise actions using the action decoder via Euler ODE integration
 """
 
+import os
 import torch
 import torch.nn as nn
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 from mimic_video.models.video_backbone import CosmosVideoBackbone
 from mimic_video.models.action_decoder import ActionDecoderDiT
@@ -37,15 +38,20 @@ class MimicVideoPolicy(nn.Module):
         action_decoder: ActionDecoderDiT,
         action_stats: Optional[Dict[str, torch.Tensor]] = None,
         t5_embedding: Optional[torch.Tensor] = None,
+        t5_embeddings_dict: Optional[Dict[int, torch.Tensor]] = None,
+        task_descriptions: Optional[Dict[int, str]] = None,
         tau_v: float = 1.0,
         num_video_denoise_steps: int = 0,
         num_action_denoise_steps: int = 10,
         num_cond_latent_frames: int = 2,
         num_pred_latent_frames: int = 3,
         num_pixel_frames: int = 17,
+        action_stats_path: str = None,
         camera_names: list = None,
         target_height: int = 480,
         target_width: int = 640,
+        action_norm_type: str = "min-max",
+        hidden_state_pool: str = "mean",
         device: str = "cuda",
     ):
         super().__init__()
@@ -62,24 +68,78 @@ class MimicVideoPolicy(nn.Module):
         self.camera_names = camera_names or []
         self.target_height = target_height
         self.target_width = target_width
+        self.action_norm_type = action_norm_type
+        self.hidden_state_pool = hidden_state_pool
         self.device = device
 
         # Action normalization stats
-        if action_stats is not None:
-            self.register_buffer("action_mean", action_stats["mean"])
-            self.register_buffer("action_std", action_stats["std"])
-        else:
-            self.action_mean = None
-            self.action_std = None
+        self.action_mean = None
+        self.action_std = None
+        self.action_min = None
+        self.action_max = None
 
-        # Precomputed T5 embedding
+        if action_stats_path and os.path.exists(action_stats_path):
+            print(f"Loading action stats from {action_stats_path}")
+            stats = torch.load(action_stats_path, map_location="cpu", weights_only=True)
+            self.action_mean = stats.get("mean", None)
+            self.action_std = stats.get("std", None)
+            self.action_min = stats.get("min", None)
+            self.action_max = stats.get("max", None)
+        else:
+            print(f"Warning: No action stats found at {action_stats_path}. Output actions won't be denormalized.")
+
+        # T5 embeddings: single-task or multi-task
         self.t5_embedding = t5_embedding
+        self.t5_embeddings_dict = t5_embeddings_dict or {}
+        self.task_descriptions = task_descriptions or {}
+
+    def get_t5_embedding_for_prompt(self, prompt: str) -> Optional[torch.Tensor]:
+        """Find the precomputed T5 embedding matching the given prompt.
+
+        Matches by checking if the prompt is a substring of any task description
+        (or vice versa), with case-insensitive comparison.
+
+        Args:
+            prompt: Task description string from the LIBERO client.
+
+        Returns:
+            Matching T5 embedding [1, seq_len, dim], or None if no match found.
+        """
+        if not self.t5_embeddings_dict:
+            return self.t5_embedding
+
+        prompt_lower = prompt.strip().lower()
+
+        # Exact match first
+        for task_idx, desc in self.task_descriptions.items():
+            if desc.strip().lower() == prompt_lower:
+                return self.t5_embeddings_dict[task_idx]
+
+        # Substring match
+        for task_idx, desc in self.task_descriptions.items():
+            desc_lower = desc.strip().lower()
+            if prompt_lower in desc_lower or desc_lower in prompt_lower:
+                return self.t5_embeddings_dict[task_idx]
+
+        # No match — fallback to first embedding
+        first_key = sorted(self.t5_embeddings_dict.keys())[0]
+        return self.t5_embeddings_dict[first_key]
 
     def denormalize_actions(self, actions: torch.Tensor) -> torch.Tensor:
         """Denormalize actions back to original scale."""
-        if self.action_mean is None:
-            return actions
-        return actions * self.action_std.to(actions.device) + self.action_mean.to(actions.device)
+        if self.action_norm_type == "min-max":
+            if self.action_min is None or self.action_max is None:
+                return actions
+            # Denormalize from [-1, 1] to original range
+            actions = (actions + 1) / 2  # Scale to [0, 1]
+            actions = actions * (self.action_max.to(actions.device) - self.action_min.to(actions.device)) + self.action_min.to(actions.device)
+        elif self.action_norm_type == "mean-std":
+            if self.action_mean is None or self.action_std is None:
+                return actions
+            actions = actions * self.action_std.to(actions.device) + self.action_mean.to(actions.device)
+        else:
+            raise ValueError(f"Unknown action normalization type: {self.action_norm_type}")
+        return actions
 
     @torch.no_grad()
     def predict_action(
@@ -179,8 +239,8 @@ class MimicVideoPolicy(nn.Module):
         # Get and pool hidden states
         h_raw = self.backbone.get_captured_hidden_states()
         h_pooled = self.backbone.pool_hidden_states(
-            h_raw.float(), num_latent_frames=T_lat_total
-        )  # [1, T_lat, hidden_dim]
+            h_raw.float(), num_latent_frames=T_lat_total, mode=self.hidden_state_pool
+        )  # shape depends on pool mode
 
         # 4. Fully denoise actions via Euler integration
         action_chunk_size = self.action_decoder.action_chunk_size
