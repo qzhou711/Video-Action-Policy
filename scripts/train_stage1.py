@@ -183,7 +183,7 @@ def main():
             backbone.transformer,
             device_ids=[local_rank],
             output_device=local_rank,
-            find_unused_parameters=True,
+            find_unused_parameters=False,
         )
         if is_main:
             print(f"Wrapped transformer in DDP across {world_size} GPUs")
