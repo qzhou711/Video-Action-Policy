@@ -37,6 +37,7 @@ class Stage1Trainer:
         dtype: str = "bf16",
         output_dir: str = "checkpoints/stage1",
         log_every: int = 10,
+        log_video_every: int = 1000,
         save_every: int = 1000,
         wandb_project: Optional[str] = None,
         wandb_run_name: Optional[str] = None,
@@ -58,6 +59,7 @@ class Stage1Trainer:
         self.lr_schedule = lr_schedule
         self.output_dir = output_dir
         self.log_every = log_every
+        self.log_video_every = log_video_every
         self.save_every = save_every
         self.num_cond_latent_frames = num_cond_latent_frames
         self.device = device
@@ -97,7 +99,6 @@ class Stage1Trainer:
         self.lr_scheduler = self._build_lr_scheduler()
 
         # Wandb logging
-        self.val_every = save_every  # visual validation at same cadence as checkpoints
         self.ode_steps = 20  # Euler steps for denoising during validation
 
         self.use_wandb = wandb_project is not None and self.is_main
@@ -311,18 +312,24 @@ class Stage1Trainer:
                         log_dict[f"perf/total_{k}_s"] = v
                     wandb.log(log_dict, step=global_step)
 
-            # Save checkpoint + visual validation (rank 0 only for save)
+            # Save checkpoint (rank 0 only)
             if global_step % self.save_every == 0:
-                # Offload VAE before validation (validation manages its own VAE placement)
+                # Offload VAE before save
                 self.backbone.offload_vae_and_text_encoder("cpu")
                 if self.is_main:
                     self._save_checkpoint(global_step)
-                    if self.use_wandb:
-                        self.validate_visual(global_step)
                 # Sync all ranks before continuing
                 if self.is_distributed:
                     dist.barrier()
                 # Move VAE back to GPU for training
+                self.backbone.move_vae_to(self.device)
+
+            # Visual validation video decoding (rank 0 only)
+            if global_step % self.log_video_every == 0 and self.is_main and self.use_wandb:
+                # Offload VAE text encoder
+                self.backbone.offload_vae_and_text_encoder("cpu")
+                self.validate_visual(global_step)
+                # Move VAE back to GPU
                 self.backbone.move_vae_to(self.device)
 
             pbar.update(1)

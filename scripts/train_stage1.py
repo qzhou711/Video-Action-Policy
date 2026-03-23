@@ -219,6 +219,7 @@ def main():
         dtype=train_config.dtype,
         output_dir=train_config.output_dir,
         log_every=train_config.log_every,
+        log_video_every=train_config.log_video_every,
         save_every=train_config.save_every,
         wandb_project=train_config.wandb_project if is_main else None,  # only rank 0 logs
         wandb_run_name=train_config.wandb_run_name,
