@@ -132,7 +132,7 @@ def main():
         target_height=data_config.camera_height,
         target_width=data_config.camera_width,
         episode_indices=train_episodes,
-        precomputed_dir=args.precomputed_dir,
+        precomputed_dir=data_config.precomputed_dir,
         action_norm_type=data_config.action_norm_type,
         fps=data_config.fps,
     )
