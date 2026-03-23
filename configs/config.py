@@ -174,7 +174,7 @@ class Stage1Config:
 
     # Logging
     log_every: int = 10
-    log_video_every: int = 10  # Temp low interval for OOM stress testing
+    log_video_every: int = 500
     save_every: int = 1000
     output_dir: str = "checkpoints/stage1"
     wandb_project: str = "mimic-video"
