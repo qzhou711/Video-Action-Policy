@@ -6,11 +6,11 @@ A **mimic-video**–style video–action model: LoRA-finetune a Cosmos video bac
 
 Early validation of the Stage 1 LoRA finetuning (Left: Ground Truth | Right: DiT Auto-encoder reconstruction from noise):
 
-*(Note: Click the links below to view the videos in GitHub's native player)*
-
-- 🎬 [**Step 2100 Reconstruction**](./assets/stage1_step_2100.mp4)
-- 🎬 [**Step 3100 Reconstruction**](./assets/stage1_step_3100.mp4)
-- 🎬 [**Step 4100 Reconstruction**](./assets/stage1_step_4100.mp4)
+<p align="center">
+  <img src="assets/stage1_step_2100.gif" width="32%" />
+  <img src="assets/stage1_step_3100.gif" width="32%" />
+  <img src="assets/stage1_step_4100.gif" width="32%" />
+</p>
 
 ## Overview
 
