@@ -146,11 +146,11 @@ def main():
     )
 
     # Compute or load action stats
-    stats_path = os.path.join(args.precomputed_dir, "action_stats.pt")
+    stats_path = os.path.join(data_config.precomputed_dir, "action_stats.pt")
     if is_main and not os.path.exists(stats_path):
         print("Computing action statistics...")
         action_stats = train_dataset.compute_action_stats()
-        os.makedirs(args.precomputed_dir, exist_ok=True)
+        os.makedirs(data_config.precomputed_dir, exist_ok=True)
         torch.save(action_stats, stats_path)
         print(f"Saved action stats to {stats_path}")
     
