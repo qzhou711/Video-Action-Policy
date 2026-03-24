@@ -60,6 +60,9 @@ def main():
     parser.add_argument("--resume", type=str, default=None, help="Path to Stage 2 checkpoint to resume from")
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--precomputed_dir", type=str, default=None)
+    parser.add_argument("--cosmos_model_id", type=str, default=None)
+    parser.add_argument("--wandb_project", type=str, default=None)
+    parser.add_argument("--wandb_run_name", type=str, default=None)
     args = parser.parse_args()
 
     # Setup distributed
@@ -88,6 +91,13 @@ def main():
         train_config.output_dir = f"checkpoints/{args.suite}/stage2"
         train_config.wandb_run_name = f"stage2-{args.suite}"
         train_config.stage1_checkpoint = f"checkpoints/{args.suite}/stage1/final"
+
+    if args.cosmos_model_id:
+        model_config.cosmos_model_id = args.cosmos_model_id
+    if args.wandb_project:
+        train_config.wandb_project = args.wandb_project
+    if args.wandb_run_name:
+        train_config.wandb_run_name = args.wandb_run_name
 
     # Auto-compute gradient accumulation for multi-GPU
     effective_batch = train_config.batch_size

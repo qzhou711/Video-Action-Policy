@@ -49,10 +49,14 @@ python scripts/precompute_embeddings.py --suite libero_object --cosmos_model_id 
 # python scripts/precompute_embeddings.py --suite libero_object --latents
 
 # 2. Stage 1: video backbone LoRA (auto-saves to checkpoints/libero_object/stage1/)
-torchrun --nproc_per_node=5 scripts/train_stage1.py --suite libero_object --cosmos_model_id your_cosmos_model_path
+torchrun --nproc_per_node=5 scripts/train_stage1.py --suite libero_object --cosmos_model_id your_cosmos_model_path  \
+    --wandb_project "dit4dit-stage1" \
+    -resume checkpoints/libero_object/stage1/step_5000
 
 # 3. Stage 2: action decoder (auto-loads Stage 1 & saves to checkpoints/libero_object/stage2/)
-torchrun --nproc_per_node=5 scripts/train_stage2.py --suite libero_object --cosmos_model_id your_cosmos_model_path
+torchrun --nproc_per_node=5 scripts/train_stage2.py --suite libero_object --cosmos_model_id your_cosmos_model_path \
+    --wandb_project "dit4dit-stage2" \
+    -resume checkpoints/libero_object/stage2/step_5000
 ```
 
 *(Optional) To evaluate offline Action MSE (requires manually setting `val_episodes > 0` in `config.py` for the suite):*
@@ -70,9 +74,10 @@ Install [LIBERO](https://github.com/Lifelong-Robot-Learning/LIBERO) in a **separ
 **Terminal 1 — model server (e.g., your training env):**
 
 ```bash
+conda activate mimic
 python scripts/eval_server.py \
-  --suite libero_object \
-  --port 8765
+  --stage1_checkpoint checkpoints/stage1/final \
+  --stage2_checkpoint checkpoints/stage2/final
 ```
 
 **Terminal 2 — LIBERO client (e.g., your LIBERO simulator env):**
@@ -81,7 +86,8 @@ python scripts/eval_server.py \
 python LIBERO_evaluation/libero_client.py \
   --server_url ws://localhost:8765 \
   --suites libero_object \
-  --num_episodes 50
+  --num_episodes 50 \
+  --save_video
 ```
 
 ## Inference latency benchmark (optional)

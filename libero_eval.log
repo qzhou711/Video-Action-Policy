@@ -136,3 +136,45 @@ Results saved to libero_eval_results.json
 2026-03-22 14:07:07,336 [INFO]   libero_10           : 0/10 = 0.0%
 2026-03-22 14:07:07,337 [INFO] 
 Results saved to libero_eval_results.json
+2026-03-23 23:55:56,944 [INFO] 
+############################################################
+2026-03-23 23:55:56,945 [INFO] # Evaluating suite: libero_object
+2026-03-23 23:55:56,945 [INFO] ############################################################
+2026-03-23 23:55:56,945 [INFO] 
+============================================================
+2026-03-23 23:55:56,945 [INFO] Suite: libero_object | Tasks: 10 | Episodes/task: 50
+2026-03-23 23:55:56,945 [INFO] ============================================================
+2026-03-23 23:56:13,500 [INFO] 
+############################################################
+2026-03-23 23:56:13,500 [INFO] # Evaluating suite: libero_object
+2026-03-23 23:56:13,500 [INFO] ############################################################
+2026-03-23 23:56:13,500 [INFO] 
+============================================================
+2026-03-23 23:56:13,500 [INFO] Suite: libero_object | Tasks: 10 | Episodes/task: 1
+2026-03-23 23:56:13,500 [INFO] ============================================================
+2026-03-23 23:56:16,146 [INFO] 
+--- Task 1/10: pick up the alphabet soup and place it in the basket ---
+2026-03-23 23:58:42,742 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-23 23:58:42,742 [INFO]   Task 1 SR: 0/1 = 0.0%
+2026-03-23 23:58:44,195 [INFO] 
+--- Task 2/10: pick up the cream cheese and place it in the basket ---
+2026-03-24 00:01:25,018 [INFO] 
+############################################################
+2026-03-24 00:01:25,018 [INFO] # Evaluating suite: libero_object
+2026-03-24 00:01:25,018 [INFO] ############################################################
+2026-03-24 00:01:25,018 [INFO] 
+============================================================
+2026-03-24 00:01:25,018 [INFO] Suite: libero_object | Tasks: 10 | Episodes/task: 1
+2026-03-24 00:01:25,018 [INFO] ============================================================
+2026-03-24 00:01:27,545 [INFO] 
+--- Task 1/10: pick up the alphabet soup and place it in the basket ---
+2026-03-24 00:03:54,969 [INFO] Video saved: eval_videos/libero_object/task1_ep1.mp4 (608 frames)
+2026-03-24 00:03:54,969 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-24 00:03:54,970 [INFO]   Task 1 SR: 0/1 = 0.0%
+2026-03-24 00:03:55,931 [INFO] 
+--- Task 2/10: pick up the cream cheese and place it in the basket ---
+2026-03-24 00:06:26,573 [INFO] Video saved: eval_videos/libero_object/task2_ep1.mp4 (608 frames)
+2026-03-24 00:06:26,574 [INFO]   Episode 1/1: ❌ Fail (steps=608)
+2026-03-24 00:06:26,574 [INFO]   Task 2 SR: 0/1 = 0.0%
+2026-03-24 00:06:27,861 [INFO] 
+--- Task 3/10: pick up the salad dressing and place it in the basket ---
