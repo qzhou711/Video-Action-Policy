@@ -11,6 +11,15 @@ Usage:
 
     # Resume from checkpoint
     torchrun --nproc_per_node=5 scripts/train_stage2.py --resume checkpoints/stage2/step_1000
+
+    # 4090 5x libero_object
+    torchrun --nproc_per_node=5 scripts/train_stage2.py \
+    --suite libero_object \
+    --cosmos_model_id ./checkpoints/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
+    --stage1_checkpoint checkpoints/libero_object/stage1/step_4000 \
+    --wandb_project "dit4dit-stage2" \
+    --resume checkpoints/libero_object/stage2/step_1000
+
 """
 
 import os
