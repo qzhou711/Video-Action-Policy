@@ -38,7 +38,7 @@ LIBERO_SUITES: Dict[str, Dict] = {
 @dataclass
 class DataConfig:
     # Dataset (overridden by get_suite_data_config)
-    repo_id: str = "lerobot/libero_object_image"
+    repo_id: str = ""
     num_episodes: int = 454
     train_episodes: int = 454  # 100% for training
     val_episodes: int = 0

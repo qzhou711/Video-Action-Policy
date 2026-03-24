@@ -43,20 +43,21 @@ The `--suite` argument automatically manages Hugging Face repo IDs, episode coun
 
 ```bash
 # 1. Precompute multi-task T5 text embeddings for the suite
-python scripts/precompute_embeddings.py --suite libero_object
+python scripts/precompute_embeddings.py --suite libero_object --cosmos_model_id  your_cosmos_model_path
+
 # (Optional) Precompute VAE latents for speed:
 # python scripts/precompute_embeddings.py --suite libero_object --latents
 
 # 2. Stage 1: video backbone LoRA (auto-saves to checkpoints/libero_object/stage1/)
-torchrun --nproc_per_node=5 scripts/train_stage1.py --suite libero_object
+torchrun --nproc_per_node=5 scripts/train_stage1.py --suite libero_object --cosmos_model_id your_cosmos_model_path
 
 # 3. Stage 2: action decoder (auto-loads Stage 1 & saves to checkpoints/libero_object/stage2/)
-torchrun --nproc_per_node=5 scripts/train_stage2.py --suite libero_object
+torchrun --nproc_per_node=5 scripts/train_stage2.py --suite libero_object --cosmos_model_id your_cosmos_model_path
 ```
 
 *(Optional) To evaluate offline Action MSE (requires manually setting `val_episodes > 0` in `config.py` for the suite):*
 ```bash
-python scripts/evaluate.py --suite libero_object
+python scripts/evaluate.py --suite libero_object --cosmos_model_id your_cosmos_model_path
 ```
 
 Evaluation scripts set `HF_HUB_OFFLINE=1` so Hugging Face models are resolved from the local cache when possible; the first run still needs network access to download Cosmos / T5 weights.
