@@ -36,14 +36,43 @@ pip install websockets
 
 Hyperparameters and the suite registry live in `configs/config.py` (`DataConfig`, `ModelConfig`, `Stage1Config`, `Stage2Config`, `LIBERO_SUITES`). Edit that file to change global settings, camera keys, W&B project names, or dataset proportions.
 
+### GPU Presets
+
+Use `--preset` to apply a pre-tuned `micro_batch_size` / `dtype` / `gradient_checkpointing` for your hardware. `gradient_accumulation` is computed automatically to keep the effective batch size at 200.
+
+| Preset | GPU | VRAM | dtype | micro\_batch | GC |
+|--------|-----|------|-------|--------------|----|
+| `4090` | RTX 4090 | 24 GB | bf16 | 20 | on |
+| `a100_40g` | A100 | 40 GB | bf16 | 40 | on |
+| `a100_80g` | A100 | 80 GB | bf16 | 32 | **off** |
+| `v100` | V100 | 32 GB | **fp16** | 24 | on |
+| `b200` | B200 | 192 GB | bf16 | 64 | **off** |
+
+> **V100 note**: V100 has no bf16 hardware support. The `v100` preset sets `dtype=fp16`, but stable fp16 training also requires a `GradScaler` in the trainers (not yet wired up by default).
+
+Individual flags override the preset:
+
+```bash
+# A100 80 GB × 2, but keep gradient checkpointing on (less VRAM)
+torchrun --nproc_per_node=2 scripts/train_stage1.py \
+    --suite libero_object --preset a100_80g \
+    --no_gradient_checkpointing  # remove this flag to re-enable GC
+
+# Override just micro_batch on top of a preset
+torchrun --nproc_per_node=4 scripts/train_stage1.py \
+    --suite libero_object --preset a100_40g --micro_batch_size 32
+```
+
+Override priority (highest wins): `--micro_batch_size` / `--dtype` / `--no_gradient_checkpointing` > `--preset` > `config.py` defaults.
+
 ## Training
 
-Choose a suite to train on: `libero_spatial`, `libero_object`, `libero_goal`, or `libero_10`. 
+Choose a suite to train on: `libero_spatial`, `libero_object`, `libero_goal`, or `libero_10`.
 The `--suite` argument automatically manages Hugging Face repo IDs, episode counts, multi-task T5 embeddings, and checkpoint directories.
 
 ```bash
 # 1. Precompute multi-task T5 text embeddings for the suite
-python scripts/precompute_embeddings.py --suite libero_object --cosmos_model_id  your_cosmos_model_path
+python scripts/precompute_embeddings.py --suite libero_object --cosmos_model_id your_cosmos_model_path
 
 # (Optional) Precompute VAE latents for speed:
 # python scripts/precompute_embeddings.py --suite libero_object --latents
@@ -51,6 +80,7 @@ python scripts/precompute_embeddings.py --suite libero_object --cosmos_model_id 
 # 2. Stage 1: video backbone LoRA (auto-saves to checkpoints/libero_object/stage1/)
 torchrun --nproc_per_node=5 scripts/train_stage1.py \
     --suite libero_object \
+    --preset 4090 \
     --cosmos_model_id your_cosmos_model_path \
     --wandb_project "dit4dit-stage1" \
     --resume checkpoints/libero_object/stage1/step_5000
@@ -58,8 +88,9 @@ torchrun --nproc_per_node=5 scripts/train_stage1.py \
 # 3. Stage 2: action decoder (auto-loads Stage 1 & saves to checkpoints/libero_object/stage2/)
 torchrun --nproc_per_node=5 scripts/train_stage2.py \
     --suite libero_object \
+    --preset 4090 \
     --cosmos_model_id your_cosmos_model_path \
-    --stage1_checkpoint checkpoints/libero_object/stage1/4000 \
+    --stage1_checkpoint checkpoints/libero_object/stage1/final \
     --wandb_project "dit4dit-stage2" \
     --resume checkpoints/libero_object/stage2/step_1000
 ```
@@ -110,7 +141,7 @@ python scripts/benchmark_latency.py --device cuda --warmup 3 --repeats 10
 ```
 DIT4DIT/
 ├── configs/
-│   └── config.py                 # Data / model / two-stage training config / Suite Registry
+│   └── config.py                 # Data / model / two-stage training config / Suite Registry / GPU Presets
 ├── mimic_video/
 │   ├── data/
 │   │   ├── dataset.py            # MimicVideoDataset (LeRobot + Multi-task handling)

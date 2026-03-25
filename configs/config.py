@@ -5,6 +5,63 @@ from typing import Dict, List, Optional
 
 
 # ============================================================
+# GPU Presets  --preset <name>
+# Each entry overrides: micro_batch_size, dtype,
+#                       gradient_checkpointing, (optional) batch_size / lr
+#
+# Usage:
+#   torchrun ... train_stage1.py --preset a100_80g
+#   torchrun ... train_stage1.py --preset v100 --micro_batch_size 20
+#
+# Note: V100 requires dtype="fp16" + GradScaler (see trainers).
+# ============================================================
+GPU_PRESETS: Dict[str, Dict] = {
+    # RTX 4090 × N  (24 GB, bf16)
+    "4090": {
+        "micro_batch_size": 20,
+        "dtype": "bf16",
+        "gradient_checkpointing": True,
+    },
+    # A100 40 GB × N  (bf16)
+    "a100_40g": {
+        "micro_batch_size": 40,
+        "dtype": "bf16",
+        "gradient_checkpointing": True,
+    },
+    # A100 80 GB × N  (bf16, GC off → 30-40% faster)
+    "a100_80g": {
+        "micro_batch_size": 32,
+        "dtype": "bf16",
+        "gradient_checkpointing": False,
+    },
+    # V100 32 GB × N  (fp16 only — no bf16 hardware support)
+    # ⚠️  Requires GradScaler in trainers; set dtype="fp16" in Stage*Config.
+    "v100": {
+        "micro_batch_size": 24,
+        "dtype": "fp16",
+        "gradient_checkpointing": True,
+    },
+    # B200 192 GB × N  (bf16, GC off)
+    "b200": {
+        "micro_batch_size": 64,
+        "dtype": "bf16",
+        "gradient_checkpointing": False,
+    },
+}
+
+
+def apply_gpu_preset(train_config, preset_name: str) -> None:
+    """Override train_config fields with the selected GPU preset."""
+    if preset_name not in GPU_PRESETS:
+        available = ", ".join(GPU_PRESETS.keys())
+        raise ValueError(f"Unknown preset '{preset_name}'. Available: {available}")
+    preset = GPU_PRESETS[preset_name]
+    for key, value in preset.items():
+        if hasattr(train_config, key):
+            setattr(train_config, key, value)
+
+
+# ============================================================
 # LIBERO Suite Registry
 # ============================================================
 LIBERO_SUITES: Dict[str, Dict] = {

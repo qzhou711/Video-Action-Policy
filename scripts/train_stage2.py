@@ -33,7 +33,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from configs.config import DataConfig, ModelConfig, Stage2Config, get_suite_data_config, LIBERO_SUITES
+from configs.config import DataConfig, ModelConfig, Stage2Config, get_suite_data_config, LIBERO_SUITES, GPU_PRESETS, apply_gpu_preset
 from mimic_video.data.dataset import MimicVideoDataset
 from mimic_video.models.video_backbone import CosmosVideoBackbone
 from mimic_video.models.action_decoder import ActionDecoderDiT
@@ -72,6 +72,16 @@ def main():
     parser.add_argument("--cosmos_model_id", type=str, default=None)
     parser.add_argument("--wandb_project", type=str, default=None)
     parser.add_argument("--wandb_run_name", type=str, default=None)
+    # GPU preset + per-field overrides
+    parser.add_argument("--preset", type=str, default=None,
+                        choices=list(GPU_PRESETS.keys()),
+                        help="GPU preset (4090 / a100_40g / a100_80g / v100 / b200)")
+    parser.add_argument("--micro_batch_size", type=int, default=None,
+                        help="Override micro_batch_size from preset or config")
+    parser.add_argument("--dtype", type=str, default=None, choices=["bf16", "fp16"],
+                        help="Override training dtype (bf16 or fp16)")
+    parser.add_argument("--no_gradient_checkpointing", action="store_true",
+                        help="Disable gradient checkpointing (faster, uses more VRAM)")
     args = parser.parse_args()
 
     # Setup distributed
@@ -107,6 +117,16 @@ def main():
         train_config.wandb_project = args.wandb_project
     if args.wandb_run_name:
         train_config.wandb_run_name = args.wandb_run_name
+
+    # Apply GPU preset, then individual overrides (overrides win over preset)
+    if args.preset:
+        apply_gpu_preset(train_config, args.preset)
+    if args.micro_batch_size is not None:
+        train_config.micro_batch_size = args.micro_batch_size
+    if args.dtype is not None:
+        train_config.dtype = args.dtype
+    if args.no_gradient_checkpointing:
+        train_config.gradient_checkpointing = False
 
     # Auto-compute gradient accumulation for multi-GPU
     effective_batch = train_config.batch_size
