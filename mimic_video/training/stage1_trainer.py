@@ -5,7 +5,6 @@ using flow matching, conditioned on past frames and text embeddings.
 """
 
 import os
-import math
 import time
 import torch
 import torch.nn as nn
@@ -26,7 +25,6 @@ class Stage1Trainer:
         self,
         backbone: CosmosVideoBackbone,
         train_dataloader: DataLoader,
-        val_dataloader: Optional[DataLoader] = None,
         lr: float = 1e-4,
         warmup_steps: int = 1000,
         weight_decay: float = 0.1,
@@ -49,7 +47,6 @@ class Stage1Trainer:
     ):
         self.backbone = backbone
         self.train_dataloader = train_dataloader
-        self.val_dataloader = val_dataloader
         self.lr = lr
         self.warmup_steps = warmup_steps
         self.weight_decay = weight_decay

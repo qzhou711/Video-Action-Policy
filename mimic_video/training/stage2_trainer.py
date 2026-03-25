@@ -5,7 +5,6 @@ conditioned on hidden states from the frozen LoRA-finetuned backbone.
 """
 
 import os
-import math
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -25,7 +24,6 @@ class Stage2Trainer:
         backbone: CosmosVideoBackbone,
         action_decoder: ActionDecoderDiT,
         train_dataloader: DataLoader,
-        val_dataloader: Optional[DataLoader] = None,
         lr: float = 1e-4,
         warmup_steps: int = 1000,
         weight_decay: float = 0.1,
@@ -50,7 +48,6 @@ class Stage2Trainer:
         self.backbone = backbone
         self.action_decoder = action_decoder
         self.train_dataloader = train_dataloader
-        self.val_dataloader = val_dataloader
         self.lr = lr
         self.warmup_steps = warmup_steps
         self.weight_decay = weight_decay
@@ -68,6 +65,7 @@ class Stage2Trainer:
         self.precomputed_t5_embedding = precomputed_t5_embedding
         self.rank = rank
         self.world_size = world_size
+        self.is_main = (rank == 0)
 
         self.compute_dtype = torch.bfloat16 if dtype == "bf16" else torch.float32
         self.fm = FlowMatchingScheduler()
@@ -98,11 +96,11 @@ class Stage2Trainer:
 
         # Wandb logging
         self.use_wandb = wandb_project is not None
-        if self.use_wandb and self.rank == 0:
+        if self.use_wandb and self.is_main:
             import wandb
             wandb.init(project=wandb_project, name=wandb_run_name)
 
-        if self.rank == 0:
+        if self.is_main:
             os.makedirs(output_dir, exist_ok=True)
 
     def _build_lr_scheduler(self):
@@ -225,7 +223,7 @@ class Stage2Trainer:
         global_step = start_step
         epoch = 0
 
-        if self.rank == 0:
+        if self.is_main:
             pbar = tqdm(total=self.total_steps, initial=start_step, desc="Stage 2 Training")
         else:
             pbar = None
@@ -269,7 +267,7 @@ class Stage2Trainer:
             running_loss = 0.0
 
             # Logging
-            if global_step % self.log_every == 0 and self.rank == 0:
+            if global_step % self.log_every == 0 and self.is_main:
                 lr = self.optimizer.param_groups[0]["lr"]
                 if pbar:
                     pbar.set_postfix(loss=f"{avg_loss:.4f}", lr=f"{lr:.2e}")
@@ -283,7 +281,7 @@ class Stage2Trainer:
                     }, step=global_step)
 
             # Save checkpoint
-            if self.rank == 0 and global_step % self.save_every == 0:
+            if self.is_main and global_step % self.save_every == 0:
                 self._save_checkpoint(global_step)
 
             if pbar:
@@ -293,7 +291,7 @@ class Stage2Trainer:
             pbar.close()
 
         # Save final checkpoint
-        if self.rank == 0:
+        if self.is_main:
             self._save_checkpoint(global_step, is_final=True)
             print(f"Stage 2 training complete. Final checkpoint saved to {self.output_dir}")
 
