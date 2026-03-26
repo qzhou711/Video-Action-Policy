@@ -86,6 +86,16 @@ torchrun --nproc_per_node=5 scripts/train_stage1.py \
     --resume checkpoints/libero_object/stage1/step_5000
 
 # 3. Stage 2: action decoder (auto-loads Stage 1 & saves to checkpoints/libero_object/stage2/)
+#
+# On a fresh machine, run single-process first to generate action_stats.pt,
+# then Ctrl+C after "Saved action stats to ..." appears, and launch torchrun.
+# This avoids other ranks timing out at the DDP barrier while rank 0 computes stats.
+#
+#   python scripts/train_stage2.py --suite libero_object --preset 4090 \
+#       --cosmos_model_id your_cosmos_model_path \
+#       --stage1_checkpoint checkpoints/libero_object/stage1/final
+#   # Ctrl+C after: "Saved action stats to precomputed/libero_object/action_stats.pt"
+#
 torchrun --nproc_per_node=5 scripts/train_stage2.py \
     --suite libero_object \
     --preset 4090 \

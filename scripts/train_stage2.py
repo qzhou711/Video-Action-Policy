@@ -43,10 +43,13 @@ from mimic_video.training.stage2_trainer import Stage2Trainer
 def setup_distributed():
     """Initialize distributed training if launched via torchrun."""
     if "RANK" in os.environ:
+        from datetime import timedelta
         rank = int(os.environ["RANK"])
         local_rank = int(os.environ["LOCAL_RANK"])
         world_size = int(os.environ["WORLD_SIZE"])
-        dist.init_process_group("nccl")
+        # Timeout of 2 h lets rank 0 download the dataset and compute
+        # action_stats on a fresh machine without other ranks timing out.
+        dist.init_process_group("nccl", timeout=timedelta(hours=2))
         torch.cuda.set_device(local_rank)
         return rank, local_rank, world_size
     return 0, 0, 1  # single GPU fallback

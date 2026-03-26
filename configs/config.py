@@ -30,7 +30,7 @@ GPU_PRESETS: Dict[str, Dict] = {
     },
     # A100 80 GB × N  (bf16, GC off → 30-40% faster)
     "a100_80g": {
-        "micro_batch_size": 32,
+        "micro_batch_size": 64,
         "dtype": "bf16",
         "gradient_checkpointing": False,
     },

@@ -1,0 +1,16 @@
+#stage 2
+
+
+torchrun --nproc_per_node=4 scripts/train_stage2.py \
+    --suite libero_object \
+    --preset a100_80g \
+    --cosmos_model_id your_cosmos_model_path \
+    --stage1_checkpoint checkpoints/libero_object/stage1/final \
+    --wandb_project "dit4dit-stage2" \
+    --resume checkpoints/libero_object/stage2/step_1000
+
+    torchrun --nproc_per_node=4 scripts/train_stage2.py \
+    --suite libero_object \
+    --preset a100_80g \
+    --stage1_checkpoint checkpoints/libero_object/stage1/step_1000 \
+    --wandb_project "dit4dit-stage2-object"
