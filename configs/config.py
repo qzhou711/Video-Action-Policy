@@ -140,8 +140,10 @@ class DataConfig:
         ]
     )
 
-    # Proprioception masking probability during training
-    proprio_mask_prob: float = 0.5
+    # Proprioception masking probability during training.
+    # No masking: proprio is always used as a full conditioning signal.
+    # Most robot policies (pi0, Diffusion Policy, RDT-1B) do not mask proprio.
+    proprio_mask_prob: float = 0.0
 
     # Text prompts for tasks (auto-populated from dataset metadata if None)
     task_prompts: Optional[List[str]] = None
@@ -198,7 +200,7 @@ class ModelConfig:
 
     # Hidden state extraction
     hidden_state_layer: int = 19  # Layer k=19
-    hidden_state_pool: str = "mean"  # "mean" (global mean pooling, paper default) or "none" (all ~6000 tokens)
+    hidden_state_pool: str = "none"  # "mean" (global mean pooling, paper default) or "none" (all ~6000 tokens)
 
     # Action decoder (paper: 12-layer transformer, 16 heads, hidden dim 1024)
     decoder_hidden_dim: int = 1024

@@ -168,33 +168,44 @@ async def evaluate_suite(server_url, suite_name, max_steps, num_episodes, action
                 env.reset()
                 obs = env.set_init_state(init_states[ep])
 
-                # Warmup steps (let physics stabilize)
-                for _ in range(10):
-                    obs, _, _, _ = env.step(DUMMY_ACTION)
-
-                # Signal frame buffer reset
+                # Signal frame buffer reset before warmup
                 await ws.send(json.dumps({"reset": True}))
                 await ws.recv()
 
-                episode_done = False
-                success = False
-                frames = []
-                step_count = 0
+                # Warmup steps: let physics stabilize AND collect real frames.
+                # Each warmup step sends the resulting observation to the server so
+                # the frame buffer fills with genuine (non-static) frames instead of
+                # 16 copies of the same image, avoiding a distribution mismatch on
+                # the first model query.
+                for _ in range(10):
+                    obs, _, _, _ = env.step(DUMMY_ACTION)
+                    agentview_w, wrist_w, _ = extract_obs_data(obs)
+                    await ws.send(json.dumps({
+                        "add_frame": True,
+                        "image": [
+                            agentview_w.astype(np.uint8).tolist(),
+                            wrist_w.astype(np.uint8).tolist(),
+                        ],
+                    }))
+                    await ws.recv()
 
-                # Collect initial frames to fill the buffer
-                # Send multiple initial observations so the model has temporal context
+                # Buffer now has 10 real frames; pad to 17 by repeating the last one.
                 agentview, wrist, state = extract_obs_data(obs)
-                init_frame_msg = {
+                pad_frame_msg = {
                     "add_frame": True,
                     "image": [
                         agentview.astype(np.uint8).tolist(),
                         wrist.astype(np.uint8).tolist(),
                     ],
                 }
-                # Pre-fill buffer with initial frame (repeated)
-                for _ in range(16):
-                    await ws.send(json.dumps(init_frame_msg))
+                for _ in range(7):   # 10 real + 7 pad = 17 total
+                    await ws.send(json.dumps(pad_frame_msg))
                     await ws.recv()
+
+                episode_done = False
+                success = False
+                frames = []
+                step_count = 0
 
                 while step_count < max_steps:
                     # === Query model for action chunk ===

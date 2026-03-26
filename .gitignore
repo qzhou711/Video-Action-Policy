@@ -32,6 +32,6 @@ models--nvidia--Cosmos-Predict2-2B-Video2World/
 
 # W&B
 wandb/
-
+scripts/*.csv
 # macOS
 .DS_Store
