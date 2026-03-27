@@ -30,7 +30,7 @@ GPU_PRESETS: Dict[str, Dict] = {
     },
     # A100 80 GB × N  (bf16, GC off → 30-40% faster)
     "a100_80g": {
-        "micro_batch_size": 80, #64 lr=2.5e-4
+        "micro_batch_size": 90, #64 lr=2.5e-4
         "dtype": "bf16",
         "gradient_checkpointing": False,
     },
@@ -246,7 +246,7 @@ class Stage2Config:
     warmup_steps: int = 1000
     weight_decay: float = 0.1
     grad_clip: float = 10.0
-    total_steps: int = 300000  # 1个epoch 400 steps, 25个epoch
+    total_steps: int = 50000  # 1个epoch 400 steps, 25个epoch
     batch_size: int = 200  # effective batch size via accumulation
     micro_batch_size: int = 20
     gradient_accumulation_steps: int = 2  # auto-computed in train script: batch_size / (micro_batch * num_gpus)
