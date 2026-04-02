@@ -55,7 +55,11 @@ parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--save_video", action="store_true")
 parser.add_argument("--video_dir", type=str, default="eval_videos")
 parser.add_argument("--log_file", type=str, default="libero_eval.log")
+parser.add_argument("--warmup_frames", type=int, default=5,
+                    help="Number of real warmup frames to push before first query")
 args = parser.parse_args()
+if args.warmup_frames < 1:
+    raise ValueError("--warmup_frames must be >= 1")
 
 # ========= Logging =========
 logging.basicConfig(
@@ -173,11 +177,9 @@ async def evaluate_suite(server_url, suite_name, max_steps, num_episodes, action
                 await ws.recv()
 
                 # Warmup steps: let physics stabilize AND collect real frames.
-                # Each warmup step sends the resulting observation to the server so
-                # the frame buffer fills with genuine (non-static) frames instead of
-                # 16 copies of the same image, avoiding a distribution mismatch on
-                # the first model query.
-                for _ in range(10):
+                # Keep this aligned with server-side inference frame window
+                # (--num_infer_real_frames, default 5).
+                for _ in range(args.warmup_frames):
                     obs, _, _, _ = env.step(DUMMY_ACTION)
                     agentview_w, wrist_w, _ = extract_obs_data(obs)
                     await ws.send(json.dumps({
@@ -187,19 +189,6 @@ async def evaluate_suite(server_url, suite_name, max_steps, num_episodes, action
                             wrist_w.astype(np.uint8).tolist(),
                         ],
                     }))
-                    await ws.recv()
-
-                # Buffer now has 10 real frames; pad to 17 by repeating the last one.
-                agentview, wrist, state = extract_obs_data(obs)
-                pad_frame_msg = {
-                    "add_frame": True,
-                    "image": [
-                        agentview.astype(np.uint8).tolist(),
-                        wrist.astype(np.uint8).tolist(),
-                    ],
-                }
-                for _ in range(7):   # 10 real + 7 pad = 17 total
-                    await ws.send(json.dumps(pad_frame_msg))
                     await ws.recv()
 
                 episode_done = False

@@ -3,8 +3,8 @@ torchrun --nproc_per_node=5 scripts/train_stage1.py \
     --suite libero_object \
     --preset 4090 \
     --cosmos_model_id ./checkpoints/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
-    --wandb_project "dit4dit-stage1-object" \
-    --resume checkpoints/libero_object/stage1/step_5000
+    --wandb_project "dit4dit-stage1-object" 
+   
 
 # Stage 2
 torchrun --nproc_per_node=5 scripts/train_stage2.py \
@@ -12,4 +12,4 @@ torchrun --nproc_per_node=5 scripts/train_stage2.py \
     --preset 4090 \
     --cosmos_model_id ./checkpoints/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
     --wandb_project "dit4dit-stage2-object" \
-    --stage1_checkpoint checkpoints/libero_object/stage1/final
+    --stage1_checkpoint checkpoints/libero_object/stage1/step_8000

@@ -52,8 +52,8 @@ log = logging.getLogger(__name__)
 class FrameBuffer:
     """Maintains a sliding window of video frames for the model.
 
-    The model expects 17 frames as input. This buffer accumulates frames
-    from LIBERO step-by-step and provides the full window when needed.
+    This buffer accumulates recent frames from LIBERO step-by-step and
+    provides a fixed-size window for inference.
     """
 
     def __init__(self, num_frames: int = 17, height: int = 256, width: int = 256):
@@ -122,6 +122,11 @@ def load_model(args) -> MimicVideoPolicy:
         data_config = get_suite_data_config(args.suite)
     else:
         data_config = DataConfig()
+    if args.num_infer_real_frames > data_config.num_pixel_frames:
+        raise ValueError(
+            f"--num_infer_real_frames ({args.num_infer_real_frames}) must be <= "
+            f"num_pixel_frames ({data_config.num_pixel_frames})"
+        )
     model_config = ModelConfig()
     if getattr(args, "cosmos_model_id", None):
         model_config.cosmos_model_id = args.cosmos_model_id
@@ -217,6 +222,7 @@ def load_model(args) -> MimicVideoPolicy:
         num_cond_latent_frames=data_config.num_cond_latent_frames,
         num_pred_latent_frames=data_config.num_pred_latent_frames,
         num_pixel_frames=data_config.num_pixel_frames,
+        num_infer_real_frames=args.num_infer_real_frames,
         camera_names=data_config.camera_names,
         target_height=data_config.camera_height,
         target_width=data_config.camera_width,
@@ -298,7 +304,7 @@ async def main_server(args):
     """Start the WebSocket server."""
     policy, data_config = load_model(args)
     frame_buffer = FrameBuffer(
-        num_frames=data_config.num_pixel_frames,
+        num_frames=args.num_infer_real_frames,
         height=data_config.camera_height,
         width=data_config.camera_width,
     )
@@ -330,7 +336,8 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--tau_v", type=float, default=1.0)
-    parser.add_argument("--num_action_steps", type=int, default=40)
+    parser.add_argument("--num_action_steps", type=int, default=10 )
+    parser.add_argument("--num_infer_real_frames", type=int, default=5)
     parser.add_argument("--cosmos_model_id", type=str, default=None, help="Local path or HF ID for Cosmos model")
     args = parser.parse_args()
 

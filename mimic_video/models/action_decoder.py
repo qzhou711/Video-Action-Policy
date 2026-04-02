@@ -299,6 +299,7 @@ class ActionDecoderDiT(nn.Module):
         self,
         action_dim: int = 16,
         proprio_dim: int = 16,
+        text_dim: int = 1024,
         hidden_dim: int = 512,
         num_layers: int = 8,
         num_heads: int = 8,
@@ -330,7 +331,7 @@ class ActionDecoderDiT(nn.Module):
         # Optional direct text-to-video-context path:
         # compress T5 tokens to one token in backbone_hidden_dim and prepend to h_video.
         self.text_context_proj = nn.Sequential(
-            nn.LazyLinear(backbone_hidden_dim),
+            nn.Linear(text_dim, backbone_hidden_dim),
             nn.GELU(),
             nn.Linear(backbone_hidden_dim, backbone_hidden_dim),
         )
@@ -419,6 +420,11 @@ class ActionDecoderDiT(nn.Module):
         # one compressed token prepended to video context.
         if t5_embedding is not None:
             text_tokens = t5_embedding.to(h_video.dtype)
+            if text_tokens.shape[-1] != self.text_context_proj[0].in_features:
+                raise ValueError(
+                    f"t5_embedding dim mismatch: got {text_tokens.shape[-1]}, "
+                    f"expected {self.text_context_proj[0].in_features}"
+                )
             text_token = text_tokens.mean(dim=1, keepdim=True)  # [B, 1, text_dim]
             text_token = self.text_context_proj(text_token)  # [B, 1, backbone_hidden_dim]
             h_video = torch.cat([text_token, h_video], dim=1)

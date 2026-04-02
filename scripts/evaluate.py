@@ -102,6 +102,7 @@ def main():
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--tau_v", type=float, default=1.0, help="Video noise level at inference (1.0 = no denoising)")
     parser.add_argument("--num_action_steps", type=int, default=10, help="Number of Euler steps for action denoising")
+    parser.add_argument("--num_infer_real_frames", type=int, default=5, help="How many recent real frames to encode with VAE during inference")
     parser.add_argument("--max_samples", type=int, default=200, help="Max samples to evaluate")
     parser.add_argument("--cosmos_model_id", type=str, default=None, help="Local path or HF ID for Cosmos model")
     args = parser.parse_args()
@@ -123,6 +124,11 @@ def main():
             args.stage2_checkpoint = "checkpoints/stage2/final"
         if args.precomputed_dir is None:
             args.precomputed_dir = "precomputed/"
+    if args.num_infer_real_frames > data_config.num_pixel_frames:
+        raise ValueError(
+            f"--num_infer_real_frames ({args.num_infer_real_frames}) must be <= "
+            f"num_pixel_frames ({data_config.num_pixel_frames})"
+        )
 
     model_config = ModelConfig()
     if getattr(args, "cosmos_model_id", None):
@@ -226,6 +232,7 @@ def main():
         num_cond_latent_frames=data_config.num_cond_latent_frames,
         num_pred_latent_frames=data_config.num_pred_latent_frames,
         num_pixel_frames=data_config.num_pixel_frames,
+        num_infer_real_frames=args.num_infer_real_frames,
         camera_names=data_config.camera_names,
         target_height=data_config.camera_height,
         target_width=data_config.camera_width,

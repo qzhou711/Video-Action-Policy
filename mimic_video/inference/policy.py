@@ -46,6 +46,7 @@ class MimicVideoPolicy(nn.Module):
         num_cond_latent_frames: int = 2,
         num_pred_latent_frames: int = 3,
         num_pixel_frames: int = 17,
+        num_infer_real_frames: int = 5,
         action_stats_path: str = None,
         camera_names: list = None,
         target_height: int = 480,
@@ -65,12 +66,20 @@ class MimicVideoPolicy(nn.Module):
         self.num_cond_latent_frames = num_cond_latent_frames
         self.num_pred_latent_frames = num_pred_latent_frames
         self.num_pixel_frames = num_pixel_frames
+        self.num_infer_real_frames = num_infer_real_frames
         self.camera_names = camera_names or []
         self.target_height = target_height
         self.target_width = target_width
         self.action_norm_type = action_norm_type
         self.hidden_state_pool = hidden_state_pool
         self.device = device
+        if self.num_infer_real_frames <= 0:
+            raise ValueError("num_infer_real_frames must be > 0")
+        if self.num_infer_real_frames > self.num_pixel_frames:
+            raise ValueError(
+                f"num_infer_real_frames ({self.num_infer_real_frames}) must be <= "
+                f"num_pixel_frames ({self.num_pixel_frames})"
+            )
 
         # Action normalization stats
         self.action_mean = None
@@ -160,7 +169,8 @@ class MimicVideoPolicy(nn.Module):
 
         Args:
             video_frames: Concatenated 2x2 camera frames [1, T, C, H, W] in [-1, 1].
-                T should be num_pixel_frames (17 frames).
+                T can be any positive length. Only the most recent
+                num_infer_real_frames are encoded with VAE.
             proprio: Current proprioception [1, proprio_dim].
             t5_embedding: Optional T5 text embedding [1, seq_len, text_dim].
 
@@ -172,6 +182,10 @@ class MimicVideoPolicy(nn.Module):
 
         video_frames = video_frames.to(device)
         proprio = proprio.to(device).float()
+        if video_frames.ndim != 5 or video_frames.shape[1] < 1:
+            raise ValueError(f"Expected video_frames shape [B, T, C, H, W], got {tuple(video_frames.shape)}")
+        if video_frames.shape[1] > self.num_infer_real_frames:
+            video_frames = video_frames[:, -self.num_infer_real_frames:]
 
         # Get T5 embedding
         if t5_embedding is not None:
