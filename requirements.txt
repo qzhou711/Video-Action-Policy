@@ -18,3 +18,5 @@ tqdm
 sentencepiece
 protobuf
 wandb[media]
+
+huggingface_hub>=0.34.2,<0.36.0
