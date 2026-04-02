@@ -146,7 +146,8 @@ class Stage2Trainer:
         z_pred = z_0[:, :, self.num_cond_latent_frames:]
 
         # 2. Sample video noise and timestep
-        tau_v = self.fm.sample_tau_video(B, device=z_pred.device)
+        tau_v = torch.ones(B, device=z_pred.device, dtype=z_pred.dtype)
+        # tau_v = self.fm.sample_tau_video(B, device=z_pred.device)  # there is a problem with tau_v distribution
         eps_v = torch.randn_like(z_pred)
         z_noisy = self.fm.interpolate(z_pred, eps_v, tau_v)
 
@@ -198,6 +199,7 @@ class Stage2Trainer:
                 noisy_actions=a_noisy,
                 proprio=proprio,
                 h_video=h_pooled,
+                t5_embedding=t5_emb,
                 tau_a=tau_a,
                 tau_v=tau_v,
                 training=True,

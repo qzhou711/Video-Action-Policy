@@ -261,6 +261,7 @@ class MimicVideoPolicy(nn.Module):
                 noisy_actions=a_t,
                 proprio=proprio,
                 h_video=h_pooled,
+                t5_embedding=t5_emb,
                 tau_a=tau_a_tensor,
                 tau_v=current_tau_v,
                 training=False,

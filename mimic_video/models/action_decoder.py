@@ -156,6 +156,8 @@ class ActionDecoderBlock(nn.Module):
         self.cross_attn_q = nn.Linear(hidden_dim, hidden_dim)
         self.cross_attn_k = nn.Linear(backbone_hidden_dim, hidden_dim)
         self.cross_attn_v = nn.Linear(backbone_hidden_dim, hidden_dim)
+        self.cross_attn_q_norm = nn.RMSNorm(hidden_dim, eps=1e-6)
+        self.cross_attn_k_norm = nn.RMSNorm(hidden_dim, eps=1e-6)
         self.cross_attn_out = nn.Linear(hidden_dim, hidden_dim)
 
         # 2. Self-attention over action sequence
@@ -163,6 +165,8 @@ class ActionDecoderBlock(nn.Module):
         self.self_attn_q = nn.Linear(hidden_dim, hidden_dim)
         self.self_attn_k = nn.Linear(hidden_dim, hidden_dim)
         self.self_attn_v = nn.Linear(hidden_dim, hidden_dim)
+        self.self_attn_q_norm = nn.RMSNorm(hidden_dim, eps=1e-6)
+        self.self_attn_k_norm = nn.RMSNorm(hidden_dim, eps=1e-6)
         self.self_attn_out = nn.Linear(hidden_dim, hidden_dim)
 
         # 3. MLP
@@ -175,7 +179,11 @@ class ActionDecoderBlock(nn.Module):
         )
 
     def _attention(
-        self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        use_rope: bool = False,
     ) -> torch.Tensor:
         """Multi-head attention.
 
@@ -193,10 +201,38 @@ class ActionDecoderBlock(nn.Module):
         k = rearrange(k, "b l (h d) -> b h l d", h=self.num_heads)
         v = rearrange(v, "b l (h d) -> b h l d", h=self.num_heads)
 
+        if use_rope:
+            q = self._apply_rope_1d(q)
+            k = self._apply_rope_1d(k)
+
         # Scaled dot-product attention
         out = F.scaled_dot_product_attention(q, k, v)
         out = rearrange(out, "b h l d -> b l (h d)")
         return out
+
+    @staticmethod
+    def _apply_rope_1d(x: torch.Tensor, base: float = 10000.0) -> torch.Tensor:
+        """Apply 1D RoPE to tensor shaped [B, H, L, D]."""
+        _, _, seq_len, head_dim = x.shape
+        if head_dim % 2 != 0:
+            raise ValueError(f"RoPE requires even head_dim, got {head_dim}")
+
+        device = x.device
+        dtype = x.dtype
+
+        pos = torch.arange(seq_len, device=device, dtype=torch.float32)
+        inv_freq = 1.0 / (
+            base ** (torch.arange(0, head_dim, 2, device=device, dtype=torch.float32) / head_dim)
+        )
+        freqs = torch.outer(pos, inv_freq)  # [L, D/2]
+        cos = freqs.cos().to(dtype).unsqueeze(0).unsqueeze(0)  # [1, 1, L, D/2]
+        sin = freqs.sin().to(dtype).unsqueeze(0).unsqueeze(0)  # [1, 1, L, D/2]
+
+        x_even = x[..., 0::2]
+        x_odd = x[..., 1::2]
+        x_rot_even = x_even * cos - x_odd * sin
+        x_rot_odd = x_even * sin + x_odd * cos
+        return torch.stack((x_rot_even, x_rot_odd), dim=-1).flatten(-2)
 
     def forward(
         self,
@@ -214,22 +250,22 @@ class ActionDecoderBlock(nn.Module):
         Returns:
             Updated action sequence, shape [B, L, hidden_dim].
         """
-        # 1. Cross-attention to video hidden states
+        # 1. Self-attention over action sequence
+        x_mod, gate = self.adaln_self(x, cond)
+        q = self.self_attn_q_norm(self.self_attn_q(x_mod))
+        k = self.self_attn_k_norm(self.self_attn_k(x_mod))
+        v = self.self_attn_v(x_mod)
+        attn_out = self._attention(q, k, v, use_rope=True)
+        attn_out = self.self_attn_out(attn_out)
+        x = x + gate * attn_out
+
+        # 2. Cross-attention to video hidden states
         x_mod, gate = self.adaln_cross(x, cond)
-        q = self.cross_attn_q(x_mod)
-        k = self.cross_attn_k(h_video)
+        q = self.cross_attn_q_norm(self.cross_attn_q(x_mod))
+        k = self.cross_attn_k_norm(self.cross_attn_k(h_video))
         v = self.cross_attn_v(h_video)
         attn_out = self._attention(q, k, v)
         attn_out = self.cross_attn_out(attn_out)
-        x = x + gate * attn_out
-
-        # 2. Self-attention over action sequence
-        x_mod, gate = self.adaln_self(x, cond)
-        q = self.self_attn_q(x_mod)
-        k = self.self_attn_k(x_mod)
-        v = self.self_attn_v(x_mod)
-        attn_out = self._attention(q, k, v)
-        attn_out = self.self_attn_out(attn_out)
         x = x + gate * attn_out
 
         # 3. MLP
@@ -277,6 +313,7 @@ class ActionDecoderDiT(nn.Module):
         self.hidden_dim = hidden_dim
         self.action_chunk_size = action_chunk_size
         self.proprio_mask_prob = proprio_mask_prob
+        self.backbone_hidden_dim = backbone_hidden_dim
 
         # Input projections
         self.action_input_mlp = nn.Sequential(
@@ -288,6 +325,14 @@ class ActionDecoderDiT(nn.Module):
             nn.Linear(proprio_dim, hidden_dim),
             nn.SiLU(),
             nn.Linear(hidden_dim, hidden_dim),
+        )
+
+        # Optional direct text-to-video-context path:
+        # compress T5 tokens to one token in backbone_hidden_dim and prepend to h_video.
+        self.text_context_proj = nn.Sequential(
+            nn.LazyLinear(backbone_hidden_dim),
+            nn.GELU(),
+            nn.Linear(backbone_hidden_dim, backbone_hidden_dim),
         )
 
         # Mask token for proprioception masking (buffer, not a trainable parameter).
@@ -328,6 +373,7 @@ class ActionDecoderDiT(nn.Module):
         h_video: torch.Tensor,
         tau_a: torch.Tensor,
         tau_v: torch.Tensor,
+        t5_embedding: torch.Tensor | None = None,
         training: bool = True,
     ) -> torch.Tensor:
         """Forward pass of the action decoder.
@@ -336,6 +382,7 @@ class ActionDecoderDiT(nn.Module):
             noisy_actions: Noisy action chunk, shape [B, T_action, action_dim].
             proprio: Proprioception, shape [B, proprio_dim].
             h_video: Pooled video hidden states, shape [B, T_lat, backbone_hidden_dim].
+            t5_embedding: Optional T5 tokens [B, seq_len, text_dim].
             tau_a: Action denoising timestep, shape [B].
             tau_v: Video denoising timestep, shape [B].
             training: Whether in training mode (enables proprio masking).
@@ -367,6 +414,14 @@ class ActionDecoderDiT(nn.Module):
 
         # Compute timestep conditioning
         cond = self.timestep_embed(tau_v, tau_a)  # [B, hidden_dim]
+
+        # Optional direct text conditioning for action decoder:
+        # one compressed token prepended to video context.
+        if t5_embedding is not None:
+            text_tokens = t5_embedding.to(h_video.dtype)
+            text_token = text_tokens.mean(dim=1, keepdim=True)  # [B, 1, text_dim]
+            text_token = self.text_context_proj(text_token)  # [B, 1, backbone_hidden_dim]
+            h_video = torch.cat([text_token, h_video], dim=1)
 
         # Transformer blocks
         for block in self.blocks:
