@@ -200,7 +200,7 @@ class ModelConfig:
 
     # Hidden state extraction
     hidden_state_layer: int = 19  # Layer k=19
-    hidden_state_pool: str = "none"  # "mean" | "none" | "perceiver"
+    hidden_state_pool: str = "perceiver"  # "mean" | "none" | "perceiver"
     # "mean":     5 tokens (global mean per latent frame) — fast, loses spatial info
     # "none":     1280 tokens (full spatial resolution) — expensive cross-attention
     # "perceiver": T*slots tokens via learned per-frame slot attention — balanced
