@@ -33,6 +33,8 @@ scripts/devices/logs
 .vscode/
 .idea/
 *.swp
+.claude
+.cursor
 
 # W&B
 wandb/
@@ -43,3 +45,4 @@ scripts/*.csv
 stage1_full_all_tasks_3eps_4000_after/
 stage1_full_all_tasks_3eps_5000_after/
 stage1_full_all_tasks_3eps_8000_pre/
+stage1_full_all_tasks_2eps_10000_after/

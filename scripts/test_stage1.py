@@ -14,18 +14,20 @@ Usage:
       --checkpoint checkpoints/libero_object/stage1/step_8000 \
       --cosmos_model_id checkpoints/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/<id> \
       --device cuda --all_tasks --samples_per_task 1 --output_dir stage1_all_tasks
+      
+python scripts/test_stage1.py \
+  --suite libero_object \
+  --checkpoint checkpoints/libero_object/stage1/step_5000 \
+  --cosmos_model_id checkpoints/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
+  --device cuda \
+  --ode_steps 20 \
+  --full_episode \
+  --all_tasks \
+  --samples_per_task 3 \
+  --frame_pick last \
+  --save_format mp4 \
+  --output_dir stage1_full_all_tasks_3eps_5000_after
 
-      python scripts/test_stage1.py \
-        --suite libero_object \
-        --checkpoint checkpoints/libero_object/stage1/step_8000 \
-        --cosmos_model_id checkpoints/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
-        --device cuda \
-        --ode_steps 20 \
-        --full_episode \
-        --task_id 2 \
-        --episode_rank_in_task 0 \
-        --pred_frame_offset 0 \
-        --output_path stage1_task2_ep0_full.mp4
 """
 
 import os
