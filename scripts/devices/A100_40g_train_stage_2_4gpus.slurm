@@ -24,7 +24,7 @@ conda activate /projects/bbju/qzhou6/conda_envs/mimic
 
 # 设置环境变量，确保 WandB 和 HF 路径正确（避开 Home 目录）
 export HF_HOME="/work/hdd/bbju/qzhou6/hf_cache"
-export WANDB_PROJECT="dit4dit-stage2_spatial"
+export WANDB_PROJECT="dit4dit-stage2_object_a100_40g"
 
 # 进入代码目录
 cd /work/hdd/bbju/qzhou6/DIT4DIT
@@ -32,7 +32,10 @@ cd /work/hdd/bbju/qzhou6/DIT4DIT
 # --- 执行训练 ---
 # 注意：在 sbatch 中，torchrun 会自动识别 SLURM 的参数
 torchrun --nproc_per_node=4 scripts/train_stage2.py \
-    --suite libero_spatial \
+    --suite libero_object \
     --preset a100_40g \
-    --wandb_project "dit4dit-stage2_spatial" \
-    --resume checkpoints/libero_spatial/stage2/step_7000
+    --wandb_project "dit4dit-stage2_object_a100_40g" \
+    --stage1_checkpoint checkpoints/libero_object/stage1/step_5000
+
+
+    #--resume checkpoints/libero_spatial/stage2/step_7000
