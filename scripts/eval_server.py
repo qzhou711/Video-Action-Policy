@@ -161,7 +161,13 @@ def load_model(args) -> MimicVideoPolicy:
     inferred_layers = 1 + max([int(k.split(".")[1]) for k in state_dict.keys() if k.startswith("blocks.")])
     inferred_heads = inferred_hidden_dim // 64  # Standard attention head dim is 64
 
-    log.info(f"  → Inferred from checkpoint: dim={inferred_hidden_dim}, layers={inferred_layers}, heads={inferred_heads}")
+    # Detect Perceiver compressor from checkpoint
+    perceiver_slots = 0
+    if "video_compressor.slot_queries" in state_dict:
+        perceiver_slots = state_dict["video_compressor.slot_queries"].shape[1]
+        log.info(f"  → Detected Perceiver compressor: {perceiver_slots} slots/frame × {data_config.num_latent_frames} frames = {perceiver_slots * data_config.num_latent_frames} tokens")
+
+    log.info(f"  → Inferred from checkpoint: dim={inferred_hidden_dim}, layers={inferred_layers}, heads={inferred_heads}, perceiver_slots={perceiver_slots}")
 
     action_decoder = ActionDecoderDiT(
         action_dim=data_config.action_dim,
@@ -173,6 +179,8 @@ def load_model(args) -> MimicVideoPolicy:
         backbone_hidden_dim=backbone.hidden_dim,
         action_chunk_size=data_config.action_chunk_size,
         proprio_mask_prob=0.0,  # No masking at inference
+        perceiver_slots=perceiver_slots,
+        num_latent_frames=data_config.num_latent_frames,
     )
 
     action_decoder.load_state_dict(state_dict)

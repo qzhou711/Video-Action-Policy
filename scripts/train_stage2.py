@@ -266,6 +266,11 @@ def main():
     # Create action decoder
     if is_main:
         print("Creating action decoder...")
+    perceiver_slots = (
+        model_config.perceiver_slots_per_frame
+        if model_config.hidden_state_pool == "perceiver"
+        else 0
+    )
     action_decoder = ActionDecoderDiT(
         action_dim=data_config.action_dim,
         proprio_dim=data_config.proprio_dim,
@@ -276,6 +281,8 @@ def main():
         backbone_hidden_dim=backbone.hidden_dim,
         action_chunk_size=data_config.action_chunk_size,
         proprio_mask_prob=data_config.proprio_mask_prob,
+        perceiver_slots=perceiver_slots,
+        num_latent_frames=data_config.num_latent_frames,
     )
 
     action_decoder.to(device)

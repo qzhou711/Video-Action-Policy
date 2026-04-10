@@ -276,6 +276,98 @@ class ActionDecoderBlock(nn.Module):
         return x
 
 
+class PercieverVideoCompressor(nn.Module):
+    """Per-frame Perceiver compressor for video hidden states (Scheme C).
+
+    Compresses T * HW spatial tokens to T * num_slots tokens while preserving
+    temporal ordering. Each frame's HW patches are independently compressed to
+    num_slots learned slot tokens via cross-attention.
+
+    The output remains in backbone_hidden_dim space so ActionDecoderBlock
+    cross-attention K/V projections work unchanged.
+
+    Input:  [B, T*HW, backbone_hidden_dim]   e.g. [B, 1280, 2048]
+    Output: [B, T*num_slots, backbone_hidden_dim]  e.g. [B, 40, 2048]
+
+    Supervision signal: purely from action prediction loss (end-to-end).
+    Slot queries learn to attend to task-relevant spatial regions (object
+    location, gripper position) without any explicit spatial supervision.
+    """
+
+    def __init__(
+        self,
+        num_slots: int,
+        num_latent_frames: int,
+        backbone_hidden_dim: int,
+        num_heads: int = 8,
+    ):
+        super().__init__()
+        self.num_slots = num_slots
+        self.num_latent_frames = num_latent_frames
+        self.backbone_hidden_dim = backbone_hidden_dim
+        self.num_heads = num_heads
+
+        # Learnable slot queries, shared across all frames.
+        # Shape [1, num_slots, D]: each slot learns to extract one aspect of
+        # the spatial scene (e.g. object location, gripper proximity).
+        self.slot_queries = nn.Parameter(
+            torch.randn(1, num_slots, backbone_hidden_dim) * 0.02
+        )
+
+        # Standard cross-attention projections (stays in backbone_hidden_dim space)
+        self.q_proj = nn.Linear(backbone_hidden_dim, backbone_hidden_dim, bias=False)
+        self.k_proj = nn.Linear(backbone_hidden_dim, backbone_hidden_dim, bias=False)
+        self.v_proj = nn.Linear(backbone_hidden_dim, backbone_hidden_dim, bias=False)
+        self.out_proj = nn.Linear(backbone_hidden_dim, backbone_hidden_dim)
+
+        # Post-attention layer norm
+        self.norm = nn.LayerNorm(backbone_hidden_dim)
+
+        # Zero-init output projection for stable training start (slots begin
+        # as identity pass-through of queries)
+        nn.init.zeros_(self.out_proj.weight)
+        nn.init.zeros_(self.out_proj.bias)
+
+    def forward(self, h_video: torch.Tensor) -> torch.Tensor:
+        """Compress spatial tokens per frame via learned slot attention.
+
+        Args:
+            h_video: [B, T*HW, backbone_hidden_dim] — all spatial tokens.
+
+        Returns:
+            [B, T*num_slots, backbone_hidden_dim] — compressed tokens.
+        """
+        B, THW, D = h_video.shape
+        T = self.num_latent_frames
+        HW = THW // T  # spatial patches per frame (e.g. 256)
+
+        # Split into per-frame tensors: [B*T, HW, D]
+        h_frames = h_video.view(B * T, HW, D)
+        BT = B * T
+        head_dim = D // self.num_heads
+
+        # Expand slot queries for the full batch: [B*T, S, D]
+        queries = self.slot_queries.expand(BT, -1, -1)
+
+        # Project Q (from queries), K/V (from backbone patches)
+        Q = self.q_proj(queries).view(BT, self.num_slots, self.num_heads, head_dim).transpose(1, 2)
+        K = self.k_proj(h_frames).view(BT, HW, self.num_heads, head_dim).transpose(1, 2)
+        V = self.v_proj(h_frames).view(BT, HW, self.num_heads, head_dim).transpose(1, 2)
+
+        # Slots attend over spatial patches: [B*T, num_heads, S, head_dim]
+        out = F.scaled_dot_product_attention(Q, K, V)
+
+        # Merge heads and project back to D
+        out = out.transpose(1, 2).reshape(BT, self.num_slots, D)
+        out = self.out_proj(out)
+
+        # Residual from queries + layer norm
+        out = self.norm(queries + out)
+
+        # Reshape to full batch: [B, T*S, D]
+        return out.view(B, T * self.num_slots, D)
+
+
 class ActionDecoderDiT(nn.Module):
     """Action Decoder DiT (Diffusion Transformer) for mimic-video.
 
@@ -307,6 +399,9 @@ class ActionDecoderDiT(nn.Module):
         backbone_hidden_dim: int = 2048,
         action_chunk_size: int = 16,
         proprio_mask_prob: float = 0.1,
+        # Perceiver compressor (Scheme C): 0 = disabled, >0 = slots per frame
+        perceiver_slots: int = 0,
+        num_latent_frames: int = 5,
     ):
         super().__init__()
         self.action_dim = action_dim
@@ -367,6 +462,19 @@ class ActionDecoderDiT(nn.Module):
         nn.init.zeros_(self.output_proj.weight)
         nn.init.zeros_(self.output_proj.bias)
 
+        # Optional Perceiver video compressor (Scheme C).
+        # When perceiver_slots > 0, compresses [B, T*HW, backbone_hidden_dim]
+        # → [B, T*perceiver_slots, backbone_hidden_dim] before cross-attention.
+        # All ActionDecoderBlock K/V projections remain unchanged.
+        self.video_compressor = None
+        if perceiver_slots > 0:
+            self.video_compressor = PercieverVideoCompressor(
+                num_slots=perceiver_slots,
+                num_latent_frames=num_latent_frames,
+                backbone_hidden_dim=backbone_hidden_dim,
+                num_heads=num_heads,
+            )
+
     def forward(
         self,
         noisy_actions: torch.Tensor,
@@ -415,6 +523,11 @@ class ActionDecoderDiT(nn.Module):
 
         # Compute timestep conditioning
         cond = self.timestep_embed(tau_v, tau_a)  # [B, hidden_dim]
+
+        # Optional Perceiver compression: [B, T*HW, D] → [B, T*slots, D]
+        # Must run before text prepending so token counts stay consistent.
+        if self.video_compressor is not None:
+            h_video = self.video_compressor(h_video)
 
         # Optional direct text conditioning for action decoder:
         # one compressed token prepended to video context.

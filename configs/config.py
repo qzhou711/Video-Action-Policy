@@ -200,7 +200,12 @@ class ModelConfig:
 
     # Hidden state extraction
     hidden_state_layer: int = 19  # Layer k=19
-    hidden_state_pool: str = "none"  # "mean" (global mean pooling, paper default) or "none" (all ~6000 tokens)
+    hidden_state_pool: str = "none"  # "mean" | "none" | "perceiver"
+    # "mean":     5 tokens (global mean per latent frame) — fast, loses spatial info
+    # "none":     1280 tokens (full spatial resolution) — expensive cross-attention
+    # "perceiver": T*slots tokens via learned per-frame slot attention — balanced
+    perceiver_slots_per_frame: int = 8  # slots per latent frame; only used when pool="perceiver"
+    # With 5 latent frames × 8 slots = 40 tokens total (vs 1280 for none, 5 for mean)
 
     # Action decoder (paper: 12-layer transformer, 16 heads, hidden dim 1024)
     decoder_hidden_dim: int = 1024

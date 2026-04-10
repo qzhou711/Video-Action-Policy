@@ -361,7 +361,9 @@ class CosmosVideoBackbone(nn.Module):
         Returns:
             Hidden states for cross-attention. Shape depends on mode.
         """
-        if mode == "none":
+        if mode in ("none", "perceiver"):
+            # "perceiver": raw tokens returned here; compression happens inside
+            # ActionDecoderDiT.video_compressor (which is trainable).
             return hidden_states  # [B, T*H'*W', D]
 
         B, THW, D = hidden_states.shape
