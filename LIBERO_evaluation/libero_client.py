@@ -65,7 +65,7 @@ parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--save_video", action="store_true")
 parser.add_argument("--video_dir", type=str, default="eval_videos")
 parser.add_argument("--log_file", type=str, default="libero_eval.log")
-parser.add_argument("--warmup_frames", type=int, default=30,
+parser.add_argument("--warmup_frames", type=int, default=10,
                     help="Number of real warmup frames to push before first query")
 parser.add_argument("--debug_rollout_log", action="store_true",
                     help="Enable verbose rollout logs (reward/done/info snapshots)")
@@ -266,13 +266,14 @@ async def evaluate_suite(server_url, suite_name, max_steps, num_episodes, action
                     for i in range(min(action_horizon, len(action_chunk))):
                         action = list(action_chunk[i])
 
-                        g = action[6]
-                        if g > CLOSE_THRESH:
+                        g_raw = float(action[6])
+                        if g_raw > CLOSE_THRESH:
                             gripper_state = 1.0
-                        elif g < OPEN_THRESH:
+                        elif g_raw < OPEN_THRESH:
                             gripper_state = -1.0
                         # within [-0.3, 0.3]: keep previous gripper_state
                         action[6] = gripper_state
+                        g_applied = float(action[6])
 
                         try:
                             obs, reward, done, info = env.step(action[:7])
@@ -295,12 +296,14 @@ async def evaluate_suite(server_url, suite_name, max_steps, num_episodes, action
                             step_count == 1 or step_count % args.debug_log_interval == 0 or done
                         ):
                             log.info(
-                                "Rollout debug | task=%d ep=%d step=%d reward=%.4f done=%s info=%s",
+                                "Rollout debug | task=%d ep=%d step=%d reward=%.4f done=%s g_raw=%.4f g_applied=%.1f info=%s",
                                 task_id + 1,
                                 ep + 1,
                                 step_count,
                                 float(reward),
                                 str(done),
+                                g_raw,
+                                g_applied,
                                 str(info),
                             )
 
@@ -339,9 +342,10 @@ async def evaluate_suite(server_url, suite_name, max_steps, num_episodes, action
 
                 # Save video
                 if args.save_video:
+                    outcome_tag = "success" if success else "fail"
                     save_video_file(
                         frames,
-                        f"task{task_id + 1}_ep{ep + 1}.mp4",
+                        f"task{task_id + 1}_ep{ep + 1}_{outcome_tag}.mp4",
                         fps=30,
                         save_dir=os.path.join(args.video_dir, suite_name),
                     )

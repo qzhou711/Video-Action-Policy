@@ -1,0 +1,154 @@
+<mxfile host="app.diagrams.net" modified="2026-04-12T00:00:00.000Z" agent="Cursor" version="24.7.17">
+  <diagram id="stage1_stage2_flow" name="Stage1-Stage2-Training-Flow">
+    <mxGraphModel dx="1680" dy="980" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="DIT4DIT 当前训练流程（Stage1 + Stage2）" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="640" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lane_data" value="数据准备与共享输入" style="swimlane;html=1;rounded=1;startSize=28;fillColor=#f5f5f5;strokeColor=#666666;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="560" height="880" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane_s1" value="Stage1：Video DiT（LoRA）训练" style="swimlane;html=1;rounded=1;startSize=28;fillColor=#e8f3ff;strokeColor=#4a90e2;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="630" y="80" width="590" height="880" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane_s2" value="Stage2：Action Decoder 训练" style="swimlane;html=1;rounded=1;startSize=28;fillColor=#eaf7ea;strokeColor=#59a14f;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="80" width="630" height="880" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="d1" value="LeRobot / LIBERO 数据集&#xa;视频 + proprio + action + task_index" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="70" y="140" width="500" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="d2" value="预计算文本条件&#xa;t5_embeddings.pt + t5_task_descriptions.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="70" y="250" width="500" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="d3" value="动作统计（用于反归一化）&#xa;action_stats.pt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="70" y="360" width="500" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="d4" value="Stage1 Dataset&#xa;require_action_chunk = False&#xa;覆盖 episode 尾段（不再被 action_chunk 裁掉）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a90e2;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="70" y="470" width="500" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="d5" value="Stage2 Dataset&#xa;require_action_chunk = True&#xa;allow_partial_action_chunk = 默认开启&#xa;返回 action_mask（尾段可变长）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#59a14f;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="70" y="600" width="500" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="s1_1" value="加载 Cosmos Backbone + LoRA&#xa;仅训练 Transformer LoRA 参数" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a90e2;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="660" y="140" width="530" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1_2" value="输入 batch(video, t5_embedding)&#xa;video: [B,T,C,H,W] → [B,C,T,H,W]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a90e2;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="660" y="250" width="530" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1_3" value="VAE 编码得到 z0&#xa;切分 z_cond / z_pred" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a90e2;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="660" y="360" width="530" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1_4" value="采样 tau_v 与噪声 eps_v&#xa;构造 z_noisy = (1-tau)z_pred + tau*eps" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a90e2;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="660" y="460" width="530" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1_5" value="Transformer 前向（LoRA 生效）&#xa;预测 x0_pred / full_output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a90e2;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="660" y="570" width="530" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1_6" value="损失：MSE(x0_pred, z_pred)&#xa;梯度累加 → clip_grad → optimizer.step" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a90e2;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="660" y="680" width="530" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1_7" value="保存 Stage1 checkpoint&#xa;（后续供 Stage2 冻结特征提取）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d8ebff;strokeColor=#4a90e2;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="660" y="800" width="530" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="s2_1" value="加载 Stage1 checkpoint&#xa;冻结 Backbone（提取 h_video）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#59a14f;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="140" width="570" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2_2" value="输入 batch(video, proprio, actions, action_mask, t5_embedding)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#59a14f;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="250" width="570" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2_3" value="Backbone 前向提取 hidden states&#xa;pool_hidden_states(mode = none / mean)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#59a14f;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="350" width="570" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2_4" value="采样 tau_a 与 eps_a&#xa;构造 noisy actions a_noisy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#59a14f;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="460" width="570" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2_5" value="ActionDecoder 前向&#xa;velocity_pred = f(a_noisy, proprio, h_video, t5, tau)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#59a14f;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="570" width="570" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2_6" value="目标速度：velocity_target = eps_a - actions&#xa;Loss = masked MSE（action_mask 屏蔽补齐尾段）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#59a14f;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="690" width="570" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2_7" value="梯度累加 → clip_grad → optimizer.step&#xa;保存 Stage2 checkpoint（action_decoder.pt）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff3df;strokeColor=#59a14f;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="810" width="570" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_d1_d2" edge="1" parent="1" source="d1" target="d2" style="endArrow=block;strokeWidth=2;strokeColor=#666666;rounded=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_d2_d3" edge="1" parent="1" source="d2" target="d3" style="endArrow=block;strokeWidth=2;strokeColor=#666666;rounded=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_d3_d4" edge="1" parent="1" source="d3" target="d4" style="endArrow=block;strokeWidth=2;strokeColor=#666666;rounded=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_d4_d5" edge="1" parent="1" source="d4" target="d5" style="endArrow=block;strokeWidth=2;strokeColor=#666666;rounded=0;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_d4_s1_2" edge="1" parent="1" source="d4" target="s1_2" style="endArrow=block;strokeWidth=2;strokeColor=#4a90e2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_d2_s1_2" edge="1" parent="1" source="d2" target="s1_2" style="endArrow=block;strokeWidth=2;strokeColor=#4a90e2;dashed=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s1_1_s1_2" edge="1" parent="1" source="s1_1" target="s1_2" style="endArrow=block;strokeWidth=2;strokeColor=#4a90e2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s1_2_s1_3" edge="1" parent="1" source="s1_2" target="s1_3" style="endArrow=block;strokeWidth=2;strokeColor=#4a90e2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s1_3_s1_4" edge="1" parent="1" source="s1_3" target="s1_4" style="endArrow=block;strokeWidth=2;strokeColor=#4a90e2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s1_4_s1_5" edge="1" parent="1" source="s1_4" target="s1_5" style="endArrow=block;strokeWidth=2;strokeColor=#4a90e2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s1_5_s1_6" edge="1" parent="1" source="s1_5" target="s1_6" style="endArrow=block;strokeWidth=2;strokeColor=#4a90e2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s1_6_s1_7" edge="1" parent="1" source="s1_6" target="s1_7" style="endArrow=block;strokeWidth=2;strokeColor=#4a90e2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_s1_7_s2_1" edge="1" parent="1" source="s1_7" target="s2_1" style="endArrow=block;strokeWidth=2;strokeColor=#6f42c1;dashed=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_d5_s2_2" edge="1" parent="1" source="d5" target="s2_2" style="endArrow=block;strokeWidth=2;strokeColor=#59a14f;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_d2_s2_2" edge="1" parent="1" source="d2" target="s2_2" style="endArrow=block;strokeWidth=2;strokeColor=#59a14f;dashed=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s2_1_s2_2" edge="1" parent="1" source="s2_1" target="s2_2" style="endArrow=block;strokeWidth=2;strokeColor=#59a14f;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s2_2_s2_3" edge="1" parent="1" source="s2_2" target="s2_3" style="endArrow=block;strokeWidth=2;strokeColor=#59a14f;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s2_3_s2_4" edge="1" parent="1" source="s2_3" target="s2_4" style="endArrow=block;strokeWidth=2;strokeColor=#59a14f;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s2_4_s2_5" edge="1" parent="1" source="s2_4" target="s2_5" style="endArrow=block;strokeWidth=2;strokeColor=#59a14f;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s2_5_s2_6" edge="1" parent="1" source="s2_5" target="s2_6" style="endArrow=block;strokeWidth=2;strokeColor=#59a14f;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s2_6_s2_7" edge="1" parent="1" source="s2_6" target="s2_7" style="endArrow=block;strokeWidth=2;strokeColor=#59a14f;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="note" value="注：Stage2 默认 allow_partial_action_chunk 已开启，尾段样本通过 action_mask 参与训练。&#xa;hidden_state_pool 可在 config.py 中切换 none / mean。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7e6;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="975" width="1260" height="70" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

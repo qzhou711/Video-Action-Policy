@@ -342,7 +342,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--tau_v", type=float, default=1.0)
-    parser.add_argument("--num_action_steps", type=int, default=10 )
+    parser.add_argument("--num_action_steps", type=int, default=35)
     parser.add_argument("--num_infer_real_frames", type=int, default=5)
     parser.add_argument("--cosmos_model_id", type=str, default=None, help="Local path or HF ID for Cosmos model")
     args = parser.parse_args()
